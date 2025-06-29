@@ -10,14 +10,30 @@ from data.dataset import DocumentDataset
 from data.augmentation import get_train_transforms, get_valid_transforms, get_document_transforms
 from models.model import create_model
 from trainer.trainer import Trainer
+import os
+# Reset CUDA_LAUNCH_BLOCKING
+if 'CUDA_LAUNCH_BLOCKING' in os.environ:
+    del os.environ['CUDA_LAUNCH_BLOCKING']
+    print("✅ CUDA_LAUNCH_BLOCKING removed")
 
-# Disable cuDNN to avoid illegal instruction errors
-os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-torch.backends.cudnn.enabled = False
-torch.backends.cudnn.benchmark = False
-torch.backends.cudnn.deterministic = True
-torch.set_num_threads(1)
+# Reset cuDNN settings to defaults
+torch.backends.cudnn.enabled = True
+torch.backends.cudnn.benchmark = True  # or False, depending on your preference
+torch.backends.cudnn.deterministic = False
+print("✅ cuDNN settings reset to defaults")
+# Reset number of threads (default is usually number of CPU cores)
+torch.set_num_threads(torch.get_num_threads())  # This gets current default
+# Or set to a reasonable default:
+# torch.set_num_threads(0)  # 0 means use all available cores
+print(f"✅ Number of threads reset")
 
+# Verify the reset
+print("\n=== Current Settings ===")
+print(f"CUDA_LAUNCH_BLOCKING: {os.environ.get('CUDA_LAUNCH_BLOCKING', 'Not set')}")
+print(f"cuDNN enabled: {torch.backends.cudnn.enabled}")
+print(f"cuDNN benchmark: {torch.backends.cudnn.benchmark}")
+print(f"cuDNN deterministic: {torch.backends.cudnn.deterministic}")
+print(f"Number of threads: {torch.get_num_threads()}")
 def main(config_path):
     # --- 1. Setup ---
     config = load_config(config_path)

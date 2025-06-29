@@ -62,6 +62,66 @@ pyenv version
 pip install -r requirements.txt
 ```
 
+### 옵션 3: Windows 환경 설정
+
+#### 옵션 3-1: pyenv-win + venv 사용 
+
+```bash
+# pyenv-win이 설치되지 않은 경우 먼저 설치하세요
+# 방문: https://github.com/pyenv-win/pyenv-win
+
+# Python 3.10.11 설치
+pyenv install 3.10.11
+
+# 현재 버전으로 설정
+pyenv shell 3.10.11
+
+# 표준 venv를 사용하여 가상환경 생성
+python -m venv doc-env
+
+# 환경 활성화
+doc-env\Scripts\activate
+
+# 의존성 설치
+pip install -r requirements.txt
+
+# 작업 완료 후 비활성화
+deactivate
+```
+
+#### 옵션 3-2: conda/miniconda 사용
+
+```bash
+# miniconda 설치 후:
+conda create -n doc-env python=3.10.11
+conda activate doc-env
+
+# 의존성 설치
+pip install -r requirements.txt
+
+# 비활성화
+conda deactivate
+```
+
+#### 옵션 3-3: virtualenv 사용
+
+```bash
+# virtualenv 설치
+pip install virtualenv
+
+# pyenv-win으로 Python 버전 설정
+pyenv shell 3.10.11
+
+# 환경 생성
+virtualenv doc-env
+
+# 활성화
+doc-env\Scripts\activate
+
+# 의존성 설치
+pip install -r requirements.txt
+```
+
 ## 사용법
 
 ### 1. 설정 구성
