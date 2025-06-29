@@ -10,30 +10,7 @@ from data.dataset import DocumentDataset
 from data.augmentation import get_train_transforms, get_valid_transforms, get_document_transforms
 from models.model import create_model
 from trainer.trainer import Trainer
-import os
-# Reset CUDA_LAUNCH_BLOCKING
-if 'CUDA_LAUNCH_BLOCKING' in os.environ:
-    del os.environ['CUDA_LAUNCH_BLOCKING']
-    print("✅ CUDA_LAUNCH_BLOCKING removed")
 
-# Reset cuDNN settings to defaults
-torch.backends.cudnn.enabled = True
-torch.backends.cudnn.benchmark = True  # or False, depending on your preference
-torch.backends.cudnn.deterministic = False
-print("✅ cuDNN settings reset to defaults")
-# Reset number of threads (default is usually number of CPU cores)
-torch.set_num_threads(torch.get_num_threads())  # This gets current default
-# Or set to a reasonable default:
-# torch.set_num_threads(0)  # 0 means use all available cores
-print(f"✅ Number of threads reset")
-
-# Verify the reset
-print("\n=== Current Settings ===")
-print(f"CUDA_LAUNCH_BLOCKING: {os.environ.get('CUDA_LAUNCH_BLOCKING', 'Not set')}")
-print(f"cuDNN enabled: {torch.backends.cudnn.enabled}")
-print(f"cuDNN benchmark: {torch.backends.cudnn.benchmark}")
-print(f"cuDNN deterministic: {torch.backends.cudnn.deterministic}")
-print(f"Number of threads: {torch.get_num_threads()}")
 def main(config_path):
     # --- 1. Setup ---
     config = load_config(config_path)
@@ -41,7 +18,12 @@ def main(config_path):
     device = torch.device(config['device'] if torch.cuda.is_available() else 'cpu')
     os.makedirs(config['logging']['log_dir'], exist_ok=True)
     os.makedirs(config['logging']['checkpoint_dir'], exist_ok=True)
+    
+    # Print debug info once inside main function
     print(f"Using device: {device}")
+    print(f"CUDA available: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        print(f"CUDA device: {torch.cuda.get_device_name()}")
 
     # --- 2. Data Preparation ---
     if config['data'].get('use_document_augmentation', False):
@@ -59,11 +41,45 @@ def main(config_path):
     train_dataset = DocumentDataset(root_dir=config['data']['root_dir'], split='train', transform=train_transforms)
     val_dataset = DocumentDataset(root_dir=config['data']['root_dir'], split='val', transform=valid_transforms)
     
-    train_loader = DataLoader(train_dataset, batch_size=config['train']['batch_size'], shuffle=True, num_workers=config['data']['num_workers'])
-    val_loader = DataLoader(val_dataset, batch_size=config['train']['batch_size'], shuffle=False, num_workers=config['data']['num_workers'])
+    # Use num_workers=0 when using CUDA to avoid multiprocessing issues
+    num_workers = config['data']['num_workers'] if config['data']['num_workers'] > 0 else 0
+    
+    # And add the multiprocessing parameters:
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=config['train']['batch_size'], 
+        shuffle=True, 
+        num_workers=num_workers,
+        pin_memory=True if device.type == 'cuda' else False,
+        multiprocessing_context='spawn' if num_workers > 0 else None,
+        persistent_workers=True if num_workers > 0 else False
+    )
+
+    val_loader = DataLoader(
+        val_dataset, 
+        batch_size=config['train']['batch_size'], 
+        shuffle=False, 
+        num_workers=num_workers,
+        pin_memory=True if device.type == 'cuda' else False,
+        multiprocessing_context='spawn' if num_workers > 0 else None,
+        persistent_workers=True if num_workers > 0 else False  # Optional for val_loader
+    )
 
     # --- 3. Model, Loss, Optimizer ---
     num_classes = len(train_dataset.classes)
+    print(f"Number of classes: {num_classes}")
+    print(f"Training samples: {len(train_dataset)}")
+    print(f"Validation samples: {len(val_dataset)}")
+    
+    # Debug data values
+    sample_batch = next(iter(train_loader))
+    images, labels = sample_batch
+    print(f"Image tensor shape: {images.shape}")
+    print(f"Image value range: [{images.min():.3f}, {images.max():.3f}]")
+    print(f"Image mean: {images.mean():.3f}, std: {images.std():.3f}")
+    print(f"Labels: {labels}")
+    print(f"Label range: [{labels.min()}, {labels.max()}]")
+    
     model = create_model(
         model_name=config['model']['name'],
         num_classes=num_classes,
@@ -71,7 +87,11 @@ def main(config_path):
     ).to(device)
 
     loss_fn = getattr(nn, config['train']['loss'])()
-    optimizer = getattr(optim, config['train']['optimizer'])(model.parameters(), lr=config['train']['learning_rate'])
+    optimizer = getattr(optim, config['train']['optimizer'])(
+        model.parameters(), 
+        lr=config['train']['learning_rate'],
+        weight_decay=config['train']['weight_decay']
+    )
     
     scheduler = None
     if config['train'].get('scheduler'):
@@ -87,4 +107,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train a document classification model.")
     parser.add_argument('--config', type=str, required=True, help="Path to the config YAML file.")
     args = parser.parse_args()
-    main(args.config)
+    
+    try:
+        main(args.config)
+    except RuntimeError as e:
+        if "CUDA" in str(e):
+            print(f"\n❌ CUDA Error: {e}")
+            print("💡 Try these solutions:")
+            print("   1. Update your GPU drivers")
+            print("   2. Reinstall PyTorch with correct CUDA version")
+            print("   3. Run with CPU: change 'device: cpu' in config.yaml")
+            print("   4. Reduce batch_size in config.yaml")
+        else:
+            raise e

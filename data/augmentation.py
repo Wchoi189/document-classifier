@@ -5,7 +5,9 @@ from albumentations.pytorch import ToTensorV2
 def get_train_transforms(height, width, mean, std):
     """학습용 기본 이미지 변환 함수"""
     return A.Compose([
-        A.Resize(height=height, width=width),
+        A.Resize(height=1024, width=1024),  # First step
+        A.Resize(height=512, width=512),    # Second step  
+        A.Resize(height=height, width=width),  # Final step
         A.OneOf([
             A.RandomRotate90(p=1.0),
             A.Rotate(limit=15, border_mode=cv2.BORDER_CONSTANT, p=1.0),
@@ -27,7 +29,9 @@ def get_train_transforms(height, width, mean, std):
 def get_valid_transforms(height, width, mean, std):
     """검증/테스트용 이미지 변환 함수"""
     return A.Compose([
-        A.Resize(height=height, width=width),
+        A.Resize(height=1024, width=1024),  # First step
+        A.Resize(height=512, width=512),    # Second step  
+        A.Resize(height=height, width=width),  # Final step
         A.Normalize(mean=mean, std=std),
         ToTensorV2(),
     ])
@@ -37,25 +41,27 @@ def get_document_transforms(height, width, mean, std):
     try:
         from augraphy import (
             BleedThrough, LowInkRandomLines, DirtyRollers, 
-            BadPhotoCopy, JpegCompression, ShadowCast
+            BadPhotoCopy, Jpeg, ShadowCast
         )
         
         # Augraphy 변환은 numpy 배열을 입력으로 받으므로, ToTensorV2 이전에 위치해야 합니다.
         augraphy_pipeline = A.Compose([
             A.OneOf([
-                A.Lambda(image=BleedThrough(p=1.0), p=1.0),
-                A.Lambda(image=LowInkRandomLines(p=1.0), p=1.0),
-                A.Lambda(image=DirtyRollers(p=1.0), p=1.0),
+                A.Lambda(image=BleedThrough(p=1), p=1.0),
+                A.Lambda(image=LowInkRandomLines(p=1), p=1.0),
+                A.Lambda(image=DirtyRollers(p=1), p=1.0),
             ], p=0.5),
             A.OneOf([
-                A.Lambda(image=BadPhotoCopy(p=1.0), p=1.0),
-                A.Lambda(image=JpegCompression(quality_lower=70, quality_upper=95, p=1.0), p=1.0),
-                A.Lambda(image=ShadowCast(p=1.0), p=1.0),
+                A.Lambda(image=BadPhotoCopy(p=1), p=1.0),
+                A.Lambda(image=Jpeg(quality_range=(70, 95), p=1), p=1.0),
+                A.Lambda(image=ShadowCast(p=1), p=1.0),
             ], p=0.5),
         ], p=0.7)
 
         return A.Compose([
-            A.Resize(height=height, width=width),
+            A.Resize(height=1024, width=1024),  # First step
+            A.Resize(height=512, width=512),    # Second step  
+            A.Resize(height=height, width=width),  # Final step
             A.Rotate(limit=10, border_mode=cv2.BORDER_CONSTANT, p=0.5),
             augraphy_pipeline,
             A.Normalize(mean=mean, std=std),

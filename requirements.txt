@@ -17,3 +17,5 @@ grad-cam>=1.4.0
 Pillow>=8.3.0
 torchtext>=0.10.0
 transformers>=4.12.0
+fire==0.7.0
+icecream>=2.1.5

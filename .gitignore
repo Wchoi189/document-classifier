@@ -31,6 +31,7 @@ env/
 ENV/
 .venv/
 .env
+doc-env/
 
 # IDE
 .vscode/
@@ -41,6 +42,7 @@ ENV/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+notebooks/test.ipynb
 
 # Models and data
 *.pkl
@@ -60,3 +62,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Specific model files
+best_model.pth

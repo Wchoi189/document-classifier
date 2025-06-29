@@ -51,7 +51,7 @@ def predict_from_checkpoint(checkpoint_path, input_path, config, device):
             
             results.append({
                 'filename': os.path.basename(file_path),
-                'predicted_class': class_names[predicted_idx.item()],
+                'predicted_class': class_names[int(predicted_idx.item())],
                 'confidence': confidence.item()
             })
             
