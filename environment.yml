@@ -1,0 +1,42 @@
+# Final, optimized environment file for the document classifier project.
+# This file is the single source of truth for all project dependencies.
+name: doc-env-clone
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  # === Conda Packages ===
+  # Core environment and libraries installed by Conda for stability.
+  - python=3.10
+  - pytorch=2.1.0
+  - torchvision>=0.10.0
+  - pytorch-cuda=11.8
+  - "scipy<=1.9.3"       # Pinned for OS compatibility (GLIBCXX)
+  - pandas>=1.3.0
+  - numpy                # Let conda choose the best version
+  - scikit-learn>=1.0.0
+  - networkx
+  - timm>=0.5.4
+  - transformers>=4.12.0
+  - torchtext>=0.10.0
+  - pillow>=8.3.0          # Provides PIL for image handling
+  - matplotlib>=3.4.2
+  - seaborn>=0.11.2
+  - jupyterlab
+  - ipywidgets>=7.6.3
+  - ipykernel            # For Jupyter to find this kernel
+  - tqdm>=4.62.0
+  - PyYAML>=6.0
+  - opencv               # Provides cv2, managed by conda
+
+  # === Pip Packages ===
+  # Packages not available on Conda or that need specific pip versions.
+  - pip
+  - pip:
+    - albumentations>=1.1.0
+    - augraphy>=8.2.6
+    - grad-cam>=1.4.0
+    - fire>=0.7.0          # Flexible version requirement
+    - icecream>=2.1.5

@@ -4,12 +4,15 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import os
-
+from data.csv_dataset import CSVDocumentDataset
 from utils.utils import load_config, set_seed
-from data.dataset import DocumentDataset
+# from data.dataset import DocumentDataset
 from data.augmentation import get_train_transforms, get_valid_transforms, get_document_transforms
 from models.model import create_model
 from trainer.trainer import Trainer
+
+# import fire  # Add this import
+# from icecream import ic  # Add this import
 
 def main(config_path):
     # --- 1. Setup ---
@@ -25,7 +28,7 @@ def main(config_path):
     if torch.cuda.is_available():
         print(f"CUDA device: {torch.cuda.get_device_name()}")
 
-    # --- 2. Data Preparation ---
+   # --- 2. Data Preparation ---
     if config['data'].get('use_document_augmentation', False):
         train_transforms = get_document_transforms(**config['data'])
     else:
@@ -38,9 +41,24 @@ def main(config_path):
         mean=config['data']['mean'], std=config['data']['std']
     )
 
-    train_dataset = DocumentDataset(root_dir=config['data']['root_dir'], split='train', transform=train_transforms)
-    val_dataset = DocumentDataset(root_dir=config['data']['root_dir'], split='val', transform=valid_transforms)
-    
+    train_dataset = CSVDocumentDataset(
+    root_dir=config['data']['root_dir'], 
+    csv_file=config['data']['csv_file'],
+    meta_file=config['data']['meta_file'],
+    split='train', 
+    transform=train_transforms,
+    val_size=config['data']['val_size'],
+    seed=config['seed']
+)
+    val_dataset = CSVDocumentDataset(
+    root_dir=config['data']['root_dir'], 
+    csv_file=config['data']['csv_file'],
+    meta_file=config['data']['meta_file'],
+    split='val', 
+    transform=valid_transforms,
+    val_size=config['data']['val_size'],
+    seed=config['seed']
+)
     # Use num_workers=0 when using CUDA to avoid multiprocessing issues
     num_workers = config['data']['num_workers'] if config['data']['num_workers'] > 0 else 0
     
@@ -70,34 +88,57 @@ def main(config_path):
     print(f"Number of classes: {num_classes}")
     print(f"Training samples: {len(train_dataset)}")
     print(f"Validation samples: {len(val_dataset)}")
+    print(f"Classes: {train_dataset.classes[:5]}..." if len(train_dataset.classes) > 5 else f"Classes: {train_dataset.classes}")
     
-    # Debug data values
-    sample_batch = next(iter(train_loader))
-    images, labels = sample_batch
-    print(f"Image tensor shape: {images.shape}")
-    print(f"Image value range: [{images.min():.3f}, {images.max():.3f}]")
-    print(f"Image mean: {images.mean():.3f}, std: {images.std():.3f}")
-    print(f"Labels: {labels}")
-    print(f"Label range: [{labels.min()}, {labels.max()}]")
+    # Debug: Check a sample batch
+    print("\n--- Sample Batch Debug ---")
+    try:
+        sample_batch = next(iter(train_loader))
+        images, labels = sample_batch
+        print(f"✅ Batch loaded successfully")
+        print(f"Image tensor shape: {images.shape}")
+        print(f"Image value range: [{images.min():.3f}, {images.max():.3f}]")
+        print(f"Image mean: {images.mean():.3f}, std: {images.std():.3f}")
+        print(f"Labels shape: {labels.shape}")
+        print(f"Labels: {labels[:10]}")  # First 10 labels
+        print(f"Label range: [{labels.min()}, {labels.max()}]")
+        
+        # Verify labels are in correct range
+        if labels.max() >= num_classes:
+            print(f"⚠️  WARNING: Found label {labels.max()} but only {num_classes} classes!")
+        else:
+            print(f"✅ Labels are in correct range [0, {num_classes-1}]")
+            
+    except Exception as e:
+        print(f"❌ Error loading sample batch: {e}")
+        return
     
+    # Create model
     model = create_model(
         model_name=config['model']['name'],
         num_classes=num_classes,
         pretrained=config['model']['pretrained']
     ).to(device)
 
+
+    print(f"✅ Model created: {config['model']['name']}")
+    print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
+
+    # Loss function
     loss_fn = getattr(nn, config['train']['loss'])()
+    
+    # Optimizer
     optimizer = getattr(optim, config['train']['optimizer'])(
         model.parameters(), 
         lr=config['train']['learning_rate'],
         weight_decay=config['train']['weight_decay']
     )
     
+    # Scheduler (optional)
     scheduler = None
     if config['train'].get('scheduler'):
-        scheduler = getattr(optim.lr_scheduler, config['train']['scheduler'])(
-            optimizer, **config['train']['scheduler_params']
-        )
+        scheduler_class = getattr(optim.lr_scheduler, config['train']['scheduler'])
+        scheduler = scheduler_class(optimizer, **config['train']['scheduler_params'])
 
     # --- 4. Training ---
     trainer = Trainer(model, optimizer, scheduler, loss_fn, train_loader, val_loader, device, config)

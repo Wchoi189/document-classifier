@@ -65,3 +65,6 @@ Thumbs.db
 
 # Specific model files
 best_model.pth
+
+# documentation
+docs/

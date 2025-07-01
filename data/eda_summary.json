@@ -1,0 +1,42 @@
+{
+  "dataset_info": {
+    "total_samples": 1570,
+    "num_classes": 17,
+    "class_imbalance_ratio": 2.1739130434782608,
+    "missing_files_percentage": 0.0
+  },
+  "image_stats": {
+    "median_width": 443,
+    "median_height": 591,
+    "median_aspect_ratio": 0.7495769881556683,
+    "common_modes": {
+      "RGB": 1500
+    }
+  },
+  "recommendations": {
+    "target_image_size": 224,
+    "batch_size": 32,
+    "use_weighted_sampling": false,
+    "suggested_model": "resnet34",
+    "augmentation_strategy": "document_specific"
+  },
+  "class_distribution": {
+    "0": 100,
+    "1": 46,
+    "2": 100,
+    "3": 100,
+    "4": 100,
+    "5": 100,
+    "6": 100,
+    "7": 100,
+    "8": 100,
+    "9": 100,
+    "10": 100,
+    "11": 100,
+    "12": 100,
+    "13": 74,
+    "14": 50,
+    "15": 100,
+    "16": 100
+  }
+}
