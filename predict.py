@@ -23,14 +23,26 @@ def main(args):
         device=device
     )
 
-    # Save results
-    df_results = pd.DataFrame(results)
-    os.makedirs(os.path.dirname(args.output), exist_ok=True)
-    df_results.to_csv(args.output, index=False)
-    
-    print(f"✅ Prediction complete. Results saved to {args.output}")
-    print("--- Top 5 Predictions ---")
-    print(df_results.head())
+    # --- Save Results in Submission Format ---
+    if results:
+        df_results = pd.DataFrame(results)
+
+        # Create the two-column submission DataFrame
+        submission_df = pd.DataFrame({
+            'ID': df_results['filename'],
+            'target': df_results['predicted_target']
+        }).sort_values('ID').reset_index(drop=True)
+
+        # Save the final, sorted CSV
+        output_path = "outputs/predictions1.csv" # Or use args.output
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        submission_df.to_csv(output_path, index=False)
+        
+        print(f"✅ Prediction complete. Results saved to {output_path}")
+        print("--- Top 5 Predictions ---")
+        print(submission_df.head())
+    else:
+        print("⚠️ No results to save!")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Predict document classes using a trained model.")

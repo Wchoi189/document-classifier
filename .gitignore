@@ -60,3 +60,24 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+
+# .gitignore
+
+# Output, log, and documentation directories
+/outputs/
+/docs/
+/wandb/
+
+# Local submission and development files
+submission.csv
+requirements-dev.txt
+
+# Temporary config and script copies
+data/augmentation copy.py
+data/augmentations2.py
+data/augmentations_improved.py
+config/config copy 2.yaml
+config/config copy.yaml
+config/config-efficient-net.yaml
+data/dataset/
