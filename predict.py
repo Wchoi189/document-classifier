@@ -6,7 +6,135 @@ from pathlib import Path
 from icecream import ic
 
 from utils.utils import load_config
-from inference.predict import predict_from_checkpoint
+from inference.predict import predict_from_checkpoint, predict_with_wandb # logging
+
+
+# ADD new function to your existing predict.py
+def predict_images_wandb(
+    checkpoint,
+    input_path,
+    config='config/config.yaml',
+    output='outputs/predictions.csv',
+    wandb_project=None,
+    debug=False,
+    batch_size=None,
+    device=None
+):
+    """
+    🔮 Predict document classes with WandB logging.
+    
+    Args:
+        checkpoint (str): Path to the model checkpoint (.pth file)
+        input_path (str): Path to an image file or directory of images
+        config (str): Path to the config YAML file
+        output (str): Path to save the prediction results CSV file
+        wandb_project (str): WandB project name for logging (optional)
+        debug (bool): Enable debug mode with detailed logging
+        batch_size (int): Override batch size for prediction (optional)
+        device (str): Override device ('cuda' or 'cpu', optional)
+    
+    Examples:
+        # Predict with WandB logging
+        python predict.py predict_images_wandb checkpoints/best_model.pth data/test/ --wandb-project document-classifier
+        
+        # Predict without WandB
+        python predict.py predict_images_wandb checkpoints/best_model.pth data/test/
+    """
+    
+    # Setup debug mode
+    if debug:
+        ic.enable()
+        ic("🔥 Debug mode enabled!")
+    else:
+        ic.disable()
+    
+    # Load config
+    try:
+        config_data = load_config(config)
+        ic("✅ Config loaded successfully")
+    except Exception as e:
+        print(f"❌ Error loading config: {e}")
+        return
+    
+    # Override config values if provided
+    if batch_size:
+        config_data['train']['batch_size'] = batch_size
+    if device:
+        config_data['device'] = device
+    
+    # Setup device
+    device = torch.device(config_data['device'] if torch.cuda.is_available() else 'cpu')
+    
+    print(f"🚀 Starting prediction with WandB logging...")
+    print(f"📁 Checkpoint: {checkpoint}")
+    print(f"📂 Input: {input_path}")
+    print(f"💾 Output: {output}")
+    if wandb_project:
+        print(f"📊 WandB Project: {wandb_project}")
+    
+    try:
+        # Run prediction with WandB
+        results = predict_from_checkpoint(
+            checkpoint_path=checkpoint,
+            input_path=input_path,
+            config=config_data,
+            device=device,
+            wandb_project=wandb_project
+        )
+        
+        if results:
+            # Save results
+            df_results = pd.DataFrame(results)
+            
+            # Create output directory if needed
+            output_dir = os.path.dirname(output)
+            if output_dir and output_dir.strip():
+                os.makedirs(output_dir, exist_ok=True)
+            
+            df_results.to_csv(output, index=False)
+            
+            # Create submission format
+            output_df = pd.DataFrame({
+                'ID': df_results['filename'],
+                'target': df_results['predicted_target']
+            }).sort_values('ID').reset_index(drop=True)
+            
+            submission_file = 'submission.csv'
+            output_df.to_csv(submission_file, index=False)
+            
+            ic("✅ Prediction complete!")
+            ic(f"Processed {len(results)} images")
+            ic(f"Results saved to: {output}")
+            ic(f"Submission file: {submission_file}")
+            
+            # Show summary
+            if len(results) > 0:
+                print(f"\n📋 Prediction Summary:")
+                class_counts = df_results['predicted_class'].value_counts()
+                for class_name, count in class_counts.head(10).items():
+                    class_name_str = str(class_name)
+                    percentage = (count / len(df_results)) * 100
+                    print(f"  {class_name_str[:30]:30s}: {count:3d} ({percentage:5.1f}%)")
+                
+                if len(class_counts) > 10:
+                    print(f"  ... and {len(class_counts) - 10} more classes")
+                
+                # Show confidence statistics
+                confidences = df_results['confidence']
+                print(f"\n🎯 Confidence Statistics:")
+                print(f"  Mean confidence: {confidences.mean():.3f}")
+                print(f"  Min confidence:  {confidences.min():.3f}")
+                print(f"  Max confidence:  {confidences.max():.3f}")
+                print(f"  Std confidence:  {confidences.std():.3f}")
+        else:
+            print(f"⚠️  No results to save!")
+            
+    except Exception as e:
+        print(f"❌ Error during prediction: {e}")
+        if debug:
+            import traceback
+            traceback.print_exc()
+        return
 
 def predict_images(
     checkpoint,
@@ -481,18 +609,28 @@ def main():
     🔥 Main entry point using Fire CLI.
     
     Available commands:
-        predict_images    - Predict on single image or directory
-        predict_test_set  - Predict on official test set
-        batch_predict     - Run batch predictions
-        analyze_predictions - Analyze prediction results
+        predict_images        - Predict on single image or directory
+        predict_images_wandb  - Predict with WandB logging
+        predict_test_set      - Predict on official test set
+        batch_predict         - Run batch predictions
+        analyze_predictions   - Analyze prediction results
     
     Examples:
+        # Regular prediction
         python predict.py predict_images checkpoints/best_model.pth data/test_image.jpg
+        
+        # Prediction with WandB logging
+        python predict.py predict_images_wandb checkpoints/best_model.pth data/test/ --wandb-project document-classifier
+        
+        # Prediction without WandB
+        python predict.py predict_images_wandb checkpoints/best_model.pth data/test/
+        
         python predict.py predict_test_set checkpoints/best_model.pth
         python predict.py analyze_predictions outputs/predictions.csv
     """
     fire.Fire({
         'predict_images': predict_images,
+        'predict_images_wandb': predict_images_wandb,  # ADD THIS LINE
         'predict_test_set': predict_test_set,
         'batch_predict': batch_predict,
         'analyze_predictions': analyze_predictions
@@ -500,6 +638,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-            
-
-                

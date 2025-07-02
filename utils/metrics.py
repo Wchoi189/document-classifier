@@ -1,9 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools
+from typing import Literal
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_recall_fscore_support
 
-def calculate_metrics(y_true, y_pred, average='weighted'):
+def calculate_metrics(y_true, y_pred, average: Literal['binary', 'micro', 'macro', 'samples', 'weighted'] = 'weighted'):
     """
     분류 성능 지표(정확도, 정밀도, 재현율, F1 점수)를 계산합니다.
     

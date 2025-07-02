@@ -40,3 +40,4 @@ dependencies:
     - grad-cam>=1.4.0
     - fire>=0.7.0          # Flexible version requirement
     - icecream>=2.1.5
+    - wandb==0.20.1

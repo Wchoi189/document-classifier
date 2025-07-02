@@ -66,5 +66,17 @@ Thumbs.db
 # Specific model files
 best_model.pth
 
+# Weights & Biases
+wandb/
+*.wandb
+wandb-usage.md
+
+# Optional: Keep wandb config but ignore runs
+# If you want to keep wandb configs but ignore run data:
+wandb/run-*/
+wandb/sweep-*/
+!wandb/config.yaml
+!wandb/settings
+
 # documentation
 docs/

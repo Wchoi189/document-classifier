@@ -4,15 +4,13 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import os
+import wandb
 from data.csv_dataset import CSVDocumentDataset
 from utils.utils import load_config, set_seed
-# from data.dataset import DocumentDataset
 from data.augmentation import get_train_transforms, get_valid_transforms, get_document_transforms
 from models.model import create_model
 from trainer.trainer import Trainer
-
-# import fire  # Add this import
-# from icecream import ic  # Add this import
+from trainer.wandb_trainer import WandBTrainer
 
 def main(config_path):
     # --- 1. Setup ---
@@ -40,6 +38,23 @@ def main(config_path):
         height=config['data']['image_size'], width=config['data']['image_size'],
         mean=config['data']['mean'], std=config['data']['std']
     )
+    # A single call now handles all training augmentations based on your config
+    # train_transforms = create_document_transforms(
+    #     config=config['augmentations'],          # Pass the detailed augmentation config section
+    #     height=config['data']['image_size'],
+    #     width=config['data']['image_size'],
+    #     mean=config['data']['mean'],
+    #     std=config['data']['std']
+    # )
+
+    # # The validation transforms remain the same
+    # valid_transforms = get_valid_transforms(
+    #     height=config['data']['image_size'],
+    #     width=config['data']['image_size'],
+    #     mean=config['data']['mean'],
+    #     std=config['data']['std']
+    # )
+
 
     train_dataset = CSVDocumentDataset(
     root_dir=config['data']['root_dir'], 
@@ -141,14 +156,26 @@ def main(config_path):
         scheduler = scheduler_class(optimizer, **config['train']['scheduler_params'])
 
     # --- 4. Training ---
-    trainer = Trainer(model, optimizer, scheduler, loss_fn, train_loader, val_loader, device, config)
+    # trainer = Trainer(model, optimizer, scheduler, loss_fn, train_loader, val_loader, device, config)
+    # trainer.train()
+
+    # --- 4. Training with WandB ---
+    trainer = WandBTrainer(model, optimizer, scheduler, loss_fn, train_loader, val_loader, device, config)
     trainer.train()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train a document classification model.")
     parser.add_argument('--config', type=str, required=True, help="Path to the config YAML file.")
+    parser.add_argument('--wandb-offline', action='store_true', help="Run WandB in offline mode")
+    parser.add_argument('--wandb-disabled', action='store_true', help="Disable WandB logging")
     args = parser.parse_args()
-    
+
+    # Handle WandB mode
+    if args.wandb_offline:
+        os.environ["WANDB_MODE"] = "offline"
+    elif args.wandb_disabled:
+        os.environ["WANDB_DISABLED"] = "true"    
+        
     try:
         main(args.config)
     except RuntimeError as e:
