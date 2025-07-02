@@ -85,3 +85,17 @@ docs/
 meta.csv
 train.csv
 test.csv
+
+# Backup and copy files
+config/config copy.yaml
+config/config-efficient-net.yaml
+data/augmentation copy.py
+data/augmentations2.py
+data/augmentations_improved.py
+
+# Output directories
+outputs/
+
+# Development requirements and submissions
+requirements-dev.txt
+submission.csv

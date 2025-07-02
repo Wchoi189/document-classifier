@@ -19,7 +19,7 @@ def get_gpu_memory_info():
     if torch.cuda.is_available():
         memory_allocated = torch.cuda.memory_allocated() / 1024**3  # GB
         memory_reserved = torch.cuda.memory_reserved() / 1024**3   # GB
-        memory_total = torch.cuda.get_device_properties(0).total_memory / 1024**3  # GB
+        memory_total = torch.cuda.get_device_properties(0).total_memory / 1024**3  # GB  
         return {
             'allocated': memory_allocated,
             'reserved': memory_reserved, 
@@ -38,7 +38,7 @@ class WandBTrainer:
         self.val_loader = val_loader
         self.device = device
         self.config = config
-     
+        self.batch_step = 0 # Add this counter
 
         # Initialize WandB
         self.wandb_enabled = config.get('wandb', {}).get('enabled', False)
@@ -55,6 +55,16 @@ class WandBTrainer:
     def _init_wandb(self):
         """Initialize WandB run"""
         wandb_config = self.config['wandb']
+
+        # --- 1. Dynamically create the run name ---
+        model_name = self.config['model']['name']
+        batch_size = self.config['train']['batch_size']
+        image_size = self.config['data']['image_size']
+        username = wandb_config.get('username', 'user') # Get username from config or use a default
+
+        # Create the name with a placeholder for the score
+
+        run_name = f"{username}-(real_score)-{model_name}-b{batch_size}-s{image_size}-(f1_score)"
         
         # Flatten config for WandB
         flat_config = self._flatten_config(self.config)
@@ -62,12 +72,23 @@ class WandBTrainer:
         wandb.init(
             project=wandb_config['project'],
             entity=wandb_config.get('entity'),
-            name=wandb_config.get('name'),
+            name=run_name,
             tags=wandb_config.get('tags', []),
             notes=wandb_config.get('notes', ''),
             config=flat_config
         )
-        
+
+        # --- THIS IS THE KEY FIX ---
+        # Define custom x-axes. This is the most robust way.
+        if self.wandb_enabled:
+            # 1. For batch-level metrics
+            wandb.define_metric("batch/step")
+            wandb.define_metric("batch/*", step_metric="batch/step")
+
+            # 2. For epoch-level metrics
+            wandb.define_metric("epoch")
+            wandb.define_metric("epoch/*", step_metric="epoch")
+
         # Watch model if enabled
         if wandb_config.get('watch_model', True):
             wandb.watch(self.model, log='all', log_freq=wandb_config.get('log_frequency', 10))
@@ -140,8 +161,8 @@ class WandBTrainer:
                         break
         
         if wandb_images:
-            # FIXED: Don't specify step for epoch-level metrics
-            wandb.log({f"predictions_epoch_{epoch}": wandb_images}, step=epoch)
+            # commit=False tells wandb to group these logs with the next "committed" log call, which will be your main epoch log.
+            wandb.log({f"predictions_epoch_{epoch}": wandb_images}, commit=False) 
         
     def _log_confusion_matrix(self, y_true, y_pred, epoch):
         """Log confusion matrix to WandB"""
@@ -162,16 +183,16 @@ class WandBTrainer:
         plt.yticks(rotation=0)
         plt.tight_layout()
         
-        # FIXED: Don't specify step for epoch-level metrics
+       
         wandb.log({
-            "confusion_matrix": wandb.Image(plt),
-            "confusion_matrix_data": wandb.plot.confusion_matrix(
+            "epoch/confusion_matrix_plot": wandb.Image(plt),
+            "epoch/confusion_matrix_data": wandb.plot.confusion_matrix(
                 probs=None,
                 y_true=y_true,
                 preds=y_pred,
                 class_names=self.class_names
             )
-        }, step=epoch)
+        }, commit=False)
         
         plt.close()
     
@@ -213,21 +234,25 @@ class WandBTrainer:
             total_loss += loss.item()
             batch_count += 1
             
-            # Log batch metrics to WandB
+            # --- CONSOLIDATED BATCH LOGGING ---
             if self.wandb_enabled and batch_idx % log_freq == 0:
-                wandb.log({
-                    "batch_loss": loss.item(),
-                    "learning_rate": self.optimizer.param_groups[0]['lr'],
-                    "epoch": epoch,
-                    "batch": batch_idx
-                })  
-                # Log GPU memory if available
-                if torch.cuda.is_available():
-                    wandb.log({
-                        "gpu_memory_allocated": torch.cuda.memory_allocated() / 1024**3,
-                        "gpu_memory_reserved": torch.cuda.memory_reserved() / 1024**3,
-                    })
-            
+                # 1. Create a single dictionary
+                batch_log_data = {
+                    "batch/step": self.batch_step,
+                    "batch/loss": loss.item(),
+                    "batch/learning_rate": self.optimizer.param_groups[0]['lr']
+                }
+                # 2. Add GPU info to the same dictionary
+                mem_info = get_gpu_memory_info()
+                if mem_info:
+                    batch_log_data["batch/gpu_mem_alloc_gb"] = mem_info['allocated']
+
+                # 3. Make a single log call
+                wandb.log(batch_log_data)
+
+            # Increment batch_step outside the if block
+            self.batch_step += 1
+
             # Memory cleanup
             del data, target, output, loss
             if batch_count % 20 == 0:
@@ -265,17 +290,7 @@ class WandBTrainer:
         val_loss = total_loss / len(self.val_loader)
         metrics = calculate_metrics(all_targets, all_preds)
         
-        # Log per-class accuracy
-        if self.wandb_enabled:
-            class_accuracies = {}
-            for i, class_name in enumerate(self.class_names):
-                if class_total[i] > 0:
-                    acc = class_correct[i] / class_total[i]
-                    class_accuracies[f"class_acc_{class_name}"] = acc
-
-            # Do not specify step to avoid step mismatch warnings
-            wandb.log(class_accuracies, step=epoch)
-        
+    
         return val_loss, metrics['accuracy'], metrics['f1'], all_targets, all_preds
     
     def train(self):
@@ -330,38 +345,33 @@ class WandBTrainer:
                   f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | "
                   f"Val Acc: {val_acc:.4f} | Val F1: {val_f1:.4f} | "
                   f"Time: {epoch_time:.1f}s")
-            
+        
+
             # WandB logging
             if self.wandb_enabled:
-                log_dict = {
-                    "epoch": epoch,
-                    "train_loss": train_loss,
-                    "val_loss": val_loss,
-                    "val_accuracy": val_acc,
-                    "val_f1": val_f1,
-                    "epoch_time": epoch_time,
-                    "learning_rate": self.optimizer.param_groups[0]['lr']
-                }
-                
-                # Add scheduler-specific metrics
-                if self.scheduler:
-                    if hasattr(self.scheduler, 'get_last_lr') and not isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
-                        log_dict["scheduled_lr"] = self.scheduler.get_last_lr()[0]
-                
-                wandb.log(log_dict, step=epoch)                # Log sample predictions every few epochs
-                if epoch % 5 == 0 or epoch == 1:
+                if epoch % 5 == 0 or epoch == self.config['train']['epochs']:
                     self._log_sample_predictions(epoch)
-                
-                # Log confusion matrix
-                self._log_confusion_matrix(y_true, y_pred, epoch)
-            
+                    self._log_confusion_matrix(y_true, y_pred, epoch)
+                    
+
+                log_data = {
+                    "epoch": epoch,
+                    "epoch/train_loss": train_loss,
+                    "epoch/val_loss": val_loss,
+                    "epoch/val_accuracy": val_acc,
+                    "epoch/val_f1": val_f1,
+                    "epoch/learning_rate": self.optimizer.param_groups[0]['lr']
+                }
+                wandb.log(log_data)
+
+
             # Track best model
             if val_f1 > best_f1:
                 best_f1 = val_f1
                 best_epoch = epoch
                 
                 # Save best model to WandB
-                if self.wandb_enabled and self.config['wandb'].get('log_model', True):
+                if self.wandb_enabled and self.config['wandb'].get('log_model', False):
                     model_artifact = wandb.Artifact(
                         name=f"model_epoch_{epoch}",
                         type="model",
@@ -397,25 +407,39 @@ class WandBTrainer:
                     wandb.log({"early_stopped": True, "early_stop_epoch": epoch})
                 break
         
+
         total_time = time.time() - start_time
         print(f"✨ Training finished in {total_time // 60:.0f}m {total_time % 60:.0f}s")
         print(f"🏆 Best F1: {best_f1:.4f} at epoch {best_epoch}")
         
-        # Final WandB logging
+
+        # --- AFTER THE EPOCH LOOP ---
         if self.wandb_enabled:
-            wandb.log({
-                "total_training_time": total_time,
-                "best_val_f1": best_f1,
-                "best_epoch": best_epoch,
-                "total_epochs": epoch
-            })
-            
-            # Create and log training summary table
-            history_df = pd.DataFrame(self.history)
-            wandb.log({"training_history": wandb.Table(dataframe=history_df)})
-            
-            wandb.finish()
-        
+            if wandb.run is not None and getattr(wandb.run, "summary", None) is not None:
+
+                # --- THIS IS THE NEW LOGIC ---
+                # 1. Get the original run name
+                original_name = wandb.run.name
+
+                # 2. Create the new name with the F1 score, only if original_name is not None
+                if original_name is not None:
+                    new_name = original_name.replace("(f1_score)", f"{best_f1:.4f}")
+                    # 3. Update the run name in WandB
+                    wandb.run.name = new_name
+                    # No need to call wandb.run.save() here; setting the name is sufficient
+                
+                # Log the final summary values to the run's summary panel, not the history
+                wandb.run.summary["best_epoch"] = best_epoch
+                wandb.run.summary["best_val_f1"] = best_f1
+                wandb.run.summary["total_training_time_sec"] = total_time
+                wandb.run.summary["total_epochs_run"] = epoch
+
+                # Log the history table separately
+                history_df = pd.DataFrame(self.history)
+                wandb.log({"training_history_table": wandb.Table(dataframe=history_df)})
+
+                wandb.finish() 
+
         # Save local logs
         history_df = pd.DataFrame(self.history)
         history_df.to_csv(os.path.join(log_dir, 'training_log.csv'), index=False)
@@ -441,7 +465,7 @@ class WandBTrainer:
                 "loss_improvement_rate": loss_improvement,
                 "memory_efficiency": memory_efficiency,
                 "gpu_utilization": torch.cuda.utilization() if hasattr(torch.cuda, 'utilization') else 0
-            }, step=epoch)
+            })
 
     def _log_augmentation_analysis(self, epoch):
         """Analyze augmentation effectiveness"""

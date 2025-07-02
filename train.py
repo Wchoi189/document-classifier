@@ -28,11 +28,18 @@ def main(config_path):
 
    # --- 2. Data Preparation ---
     if config['data'].get('use_document_augmentation', False):
-        train_transforms = get_document_transforms(**config['data'])
+        train_transforms = get_document_transforms(
+            height=config['data']['image_size'], 
+            width=config['data']['image_size'],
+            mean=config['data']['mean'], 
+            std=config['data']['std']
+        )
     else:
         train_transforms = get_train_transforms(
-            height=config['data']['image_size'], width=config['data']['image_size'],
-            mean=config['data']['mean'], std=config['data']['std']
+            height=config['data']['image_size'], 
+            width=config['data']['image_size'],
+            mean=config['data']['mean'], 
+            std=config['data']['std']
         )
     valid_transforms = get_valid_transforms(
         height=config['data']['image_size'], width=config['data']['image_size'],

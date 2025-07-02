@@ -19,9 +19,27 @@ def predict_from_checkpoint(checkpoint_path, input_path, config, device, wandb_p
     
     # Initialize WandB if project specified
     if wandb_project:
-        wandb.init(project=wandb_project, job_type="inference")
-        wandb.log({"checkpoint_path": checkpoint_path, "input_path": input_path})
-    
+        # --- 1. Create a dynamic name for the prediction run ---
+        model_name = config.get('model', {}).get('name', 'unknown-model')
+        
+        # Extract a unique identifier from the checkpoint path
+        checkpoint_id = Path(checkpoint_path).stem
+        
+        run_name = f"predict-{model_name}-{checkpoint_id}"
+
+        # --- 2. Initialize WandB with the custom name ---
+        wandb.init(
+            project=wandb_project,
+            name=run_name,  # Use the custom name here
+            job_type="inference",
+            config={
+                "checkpoint_path": checkpoint_path,
+                "input_path": input_path,
+                "model_name": model_name
+            }
+        )
+
+
     # FIX: Get class information from meta.csv instead of dataset
     meta_file = config['data']['meta_file']
     if os.path.exists(meta_file):
