@@ -38,7 +38,7 @@ class WandBTrainer:
         self.val_loader = val_loader
         self.device = device
         self.config = config
-        self.batch_step = 0 # Add this counter
+        self.batch_step = 0
 
         # Initialize WandB
         self.wandb_enabled = config.get('wandb', {}).get('enabled', False)
@@ -78,16 +78,21 @@ class WandBTrainer:
             config=flat_config
         )
 
-        # --- THIS IS THE KEY FIX ---
-        # Define custom x-axes. This is the most robust way.
         if self.wandb_enabled:
-            # 1. For batch-level metrics
-            wandb.define_metric("batch/step")
-            wandb.define_metric("batch/*", step_metric="batch/step")
+            pass
+            # # 1. For batch-level metrics
+            # wandb.define_metric("batch/step")
+            # wandb.define_metric("batch/*", step_metric="batch/step")
 
-            # 2. For epoch-level metrics
-            wandb.define_metric("epoch")
-            wandb.define_metric("epoch/*", step_metric="epoch")
+            # # # 2. For epoch-level metrics
+            # # wandb.define_metric("epoch")
+            # # wandb.define_metric("epoch/*", step_metric="epoch")
+
+            # # 2. For epoch-level metrics - use explicit step
+            # wandb.define_metric("train/epoch_step")
+            # wandb.define_metric("train/*", step_metric="train/epoch_step")
+            # wandb.define_metric("val/*", step_metric="train/epoch_step")
+
 
         # Watch model if enabled
         if wandb_config.get('watch_model', True):
@@ -160,10 +165,12 @@ class WandBTrainer:
                     if samples_logged >= num_samples:
                         break
         
+        # if wandb_images:
+        #     # commit=False tells wandb to group these logs with the next "committed" log call, which will be your main epoch log.
+        #     wandb.log({f"predictions_epoch_{epoch}": wandb_images}, commit=False) 
         if wandb_images:
-            # commit=False tells wandb to group these logs with the next "committed" log call, which will be your main epoch log.
-            wandb.log({f"predictions_epoch_{epoch}": wandb_images}, commit=False) 
-        
+            wandb.log({"val/sample_predictions": wandb_images}, step=self.batch_step)     
+
     def _log_confusion_matrix(self, y_true, y_pred, epoch):
         """Log confusion matrix to WandB"""
         if not self.wandb_enabled or not self.config['wandb'].get('log_confusion_matrix', False):
@@ -184,16 +191,26 @@ class WandBTrainer:
         plt.tight_layout()
         
        
+        # wandb.log({
+        #     "epoch/confusion_matrix_plot": wandb.Image(plt),
+        #     "epoch/confusion_matrix_data": wandb.plot.confusion_matrix(
+        #         probs=None,
+        #         y_true=y_true,
+        #         preds=y_pred,
+        #         class_names=self.class_names
+        #     )
+        # }, commit=False)
+
         wandb.log({
-            "epoch/confusion_matrix_plot": wandb.Image(plt),
-            "epoch/confusion_matrix_data": wandb.plot.confusion_matrix(
+            "val/confusion_matrix_plot": wandb.Image(plt),
+            "val/confusion_matrix_data": wandb.plot.confusion_matrix(
                 probs=None,
                 y_true=y_true,
                 preds=y_pred,
                 class_names=self.class_names
             )
-        }, commit=False)
-        
+        }, step=self.batch_step)
+
         plt.close()
     
     def _train_epoch(self, epoch):
@@ -233,6 +250,7 @@ class WandBTrainer:
             
             total_loss += loss.item()
             batch_count += 1
+            self.batch_step += 1
             
             # --- CONSOLIDATED BATCH LOGGING ---
             if self.wandb_enabled and batch_idx % log_freq == 0:
@@ -246,12 +264,14 @@ class WandBTrainer:
                 mem_info = get_gpu_memory_info()
                 if mem_info:
                     batch_log_data["batch/gpu_mem_alloc_gb"] = mem_info['allocated']
+                    batch_log_data["batch/gpu_mem_reserved_gb"] = mem_info['reserved']
+                    
+                # # 3. Make a single log call
+                # wandb.log(batch_log_data)
 
-                # 3. Make a single log call
-                wandb.log(batch_log_data)
+                # Log with explicit step
+                wandb.log(batch_log_data, step=self.batch_step)
 
-            # Increment batch_step outside the if block
-            self.batch_step += 1
 
             # Memory cleanup
             del data, target, output, loss
@@ -310,14 +330,23 @@ class WandBTrainer:
         start_time = time.time()
         print("🚀 Training has started!")
         
-        # Log model architecture to WandB
+        # # Log model architecture to WandB
+        # if self.wandb_enabled:
+        #     wandb.log({
+        #         "model_parameters": sum(p.numel() for p in self.model.parameters()),
+        #         "trainable_parameters": sum(p.numel() for p in self.model.parameters() if p.requires_grad),
+        #         "model_size_mb": sum(p.numel() * p.element_size() for p in self.model.parameters()) / 1024**2
+        #     })
+        # Log model architecture to WandB (one-time metrics)
         if self.wandb_enabled:
-            wandb.log({
-                "model_parameters": sum(p.numel() for p in self.model.parameters()),
-                "trainable_parameters": sum(p.numel() for p in self.model.parameters() if p.requires_grad),
-                "model_size_mb": sum(p.numel() * p.element_size() for p in self.model.parameters()) / 1024**2
-            })
-        
+            model_metrics = {
+                "model/total_parameters": sum(p.numel() for p in self.model.parameters()),
+                "model/trainable_parameters": sum(p.numel() for p in self.model.parameters() if p.requires_grad),
+                "model/size_mb": sum(p.numel() * p.element_size() for p in self.model.parameters()) / 1024**2
+            }
+            # Log without step for one-time metrics
+            wandb.log(model_metrics)
+
         best_f1 = 0
         best_epoch = 0
         epoch = 0  # Initialize epoch here
@@ -347,22 +376,42 @@ class WandBTrainer:
                   f"Time: {epoch_time:.1f}s")
         
 
-            # WandB logging
+            # # WandB logging
+            # if self.wandb_enabled:
+            #     if epoch % 5 == 0 or epoch == self.config['train']['epochs']:
+            #         self._log_sample_predictions(epoch)
+            #         self._log_confusion_matrix(y_true, y_pred, epoch)
+                    
+
+            #     log_data = {
+            #         "epoch": epoch,
+            #         "epoch/train_loss": train_loss,
+            #         "epoch/val_loss": val_loss,
+            #         "epoch/val_accuracy": val_acc,
+            #         "epoch/val_f1": val_f1,
+            #         "epoch/learning_rate": self.optimizer.param_groups[0]['lr']
+            #     }
+            #     wandb.log(log_data)
+
+            # WandB epoch logging
             if self.wandb_enabled:
+                # Log training metrics with proper step
+                epoch_log_data = {
+                    "train/epoch_step": epoch,
+                    "train/loss": train_loss,
+                    "train/learning_rate": self.optimizer.param_groups[0]['lr'],
+                    "val/loss": val_loss,
+                    "val/accuracy": val_acc,
+                    "val/f1": val_f1,
+                }
+                # wandb.log(epoch_log_data, step=epoch)
+                wandb.log(epoch_log_data, step=self.batch_step)
+                # Log additional visualizations every 5 epochs
                 if epoch % 5 == 0 or epoch == self.config['train']['epochs']:
                     self._log_sample_predictions(epoch)
                     self._log_confusion_matrix(y_true, y_pred, epoch)
-                    
 
-                log_data = {
-                    "epoch": epoch,
-                    "epoch/train_loss": train_loss,
-                    "epoch/val_loss": val_loss,
-                    "epoch/val_accuracy": val_acc,
-                    "epoch/val_f1": val_f1,
-                    "epoch/learning_rate": self.optimizer.param_groups[0]['lr']
-                }
-                wandb.log(log_data)
+
 
 
             # Track best model
@@ -399,14 +448,23 @@ class WandBTrainer:
                     'memory_free': mem_info['free']
                 })
             
-            # Early stopping
-            early_stopping(val_f1 if es_config['metric'] == 'val_f1' else val_loss, self.model)
+            # # Early stopping
+            # early_stopping(val_f1 if es_config['metric'] == 'val_f1' else val_loss, self.model)
+            # if early_stopping.early_stop:
+            #     print(f"Early stopping triggered at epoch {epoch}")
+            #     if self.wandb_enabled:
+            #         wandb.log({"early_stopped": True, "early_stop_epoch": epoch})
+            #     break
+  
+            
             if early_stopping.early_stop:
-                print(f"Early stopping triggered at epoch {epoch}")
-                if self.wandb_enabled:
-                    wandb.log({"early_stopped": True, "early_stop_epoch": epoch})
-                break
-        
+                if wandb.run is not None and getattr(wandb.run, "summary", None) is not None:
+                    print(f"Early stopping triggered at epoch {epoch}")
+                    if self.wandb_enabled:
+                        # Log to summary instead of history to avoid chart issues
+                        wandb.run.summary["early_stopped"] = True
+                        wandb.run.summary["early_stop_epoch"] = epoch
+                    break       
 
         total_time = time.time() - start_time
         print(f"✨ Training finished in {total_time // 60:.0f}m {total_time % 60:.0f}s")

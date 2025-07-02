@@ -1,83 +1,141 @@
-# WandB 섹션 추가
+# Optimized configuration for ResNet-50 on high-performance GPU
+# Based on EDA: 1,570 samples, 17 classes, imbalance ratio 2.2:1
+
+# WandB Configuration
 wandb:
   enabled: true
-  project: "document-classifier"
-  entity: null  # WandB 사용자 이름 (선택 사항)
-  name: None    # 실행 이름 자동 생성
+  project: "document-classifier-resnet50"
+  entity: null
+  name: None
   username: wchoi189
-  tags: ["resnet50", "document-classification", "imbalanced", "no-augmentation"]
-  notes: "17개 클래스 문서 분류 - 클래스 불균형 2.2:1"
+  tags: ["resnet50", "document-classification", "optimized", "high-perf-gpu"]
+  notes: "ResNet-50 for 17-class document classification with 2.2:1 imbalance"
 
-  # 로깅 설정
-  log_frequency: 10        # N 배치마다 로그 기록
-  log_images: true         # 예측 샘플 로그 기록
-  log_model: false          # 모델 아티팩트 저장
-  log_gradients: false     # 그래디언트 norm 모니터링
+  # Logging settings
+  log_frequency: 5        # More frequent logging for better monitoring
+  log_images: true
+  log_model: true         # Save best models as artifacts
+  log_gradients: false
   log_confusion_matrix: true
 
-  # 고급 기능
-  watch_model: true        # 모델 구조 모니터링
-  log_code: true           # 코드 스냅샷 저장
+  # Advanced features
+  watch_model: true
+  log_code: true
 
-# 기본 설정
+# Basic settings
 seed: 42
-device: 'cuda' # 'cuda' 또는 'cpu'
+device: 'cuda'
 
-# 데이터 설정 CSV 기반
+# Data configuration - optimized for your dataset specs
 data:
   root_dir: "data/dataset"
   csv_file: "data/dataset/train.csv"
   meta_file: "data/dataset/meta.csv"
-  image_size: 224
+  image_size: 256        # Increased from 224 - better for document images
   val_size: 0.2
-  num_workers: 4  # CUDA 호환성을 위해 0으로 유지
+  num_workers: 8         # Increased for high-perf GPU (adjust based on CPU cores)
   mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
-  use_document_augmentation: false
+  use_document_augmentation: true  # Enable for better generalization
 
-  # 추가: 데이터 증강 설정
-  # augmentations:
-  #   use_blur: true
-  #   blur_params:
-  #     blur_limit: [3, 7]  # 최소값을 3으로 설정
-  #     sigma_limit: [0.1, 2.0]  # 최소값을 0보다 크게 설정
-
-# 모델 설정
+# Model configuration
 model:
   name: "resnet50"
-  # name: "resnet34" # 기존 resnet50, 약 30% 메모리 절약
   pretrained: true
 
-# 학습 설정
+# Training configuration - optimized for high-performance GPU
 train:
-  # use_amp: true # 자동 혼합 정밀도 사용 여부
-  epochs: 20
-  batch_size: 64 # 기존 32, 절반으로 줄임
-  optimizer: 'AdamW' # 'Adam', 'AdamW', 'SGD' 등 torch.optim에 있는 옵티마이저
-  loss: 'CrossEntropyLoss' # 'CrossEntropyLoss', 'FocalLoss' 등 (FocalLoss는 별도 구현 필요)
+  epochs: 50             # Increased for better convergence
+  batch_size: 128        # Larger batch size for high-perf GPU
+  optimizer: 'AdamW'     # Better than Adam for most cases
+  loss: 'CrossEntropyLoss'
 
-  # 옵티마이저 하이퍼파라미터
-  learning_rate: 0.0001
-  weight_decay: 0.0001
+  # Optimizer hyperparameters - tuned for ResNet-50
+  learning_rate: 0.001   # Higher LR with larger batch size
+  weight_decay: 0.01     # Standard for AdamW
 
-  # 스케줄러 설정 (비어있으면 사용 안 함)
-  scheduler: 'CosineAnnealingLR' # 'CosineAnnealingLR', 'ReduceLROnPlateau' 등
+  # Mixed precision for faster training on modern GPUs
+  mixed_precision: true
+
+  # Learning rate scheduler
+  scheduler: 'CosineAnnealingWarmRestarts'
   scheduler_params:
-    T_max: 20 # for CosineAnnealingLR
-    eta_min: 0.000001 # for CosineAnnealingLR
-  #   # mode: 'min' # for ReduceLROnPlateau
-  #   # factor: 0.1 # for ReduceLROnPlateau
-  #   # patience: 3 # for ReduceLROnPlateau
+    T_0: 10              # Restart every 10 epochs
+    T_mult: 2            # Double restart period each time
+    eta_min: 0.00001     # Minimum learning rate
 
-  # 조기 종료 설정 (train 섹션 안으로 이동)
+  # Early stopping configuration
   early_stopping:
-    patience: 4
-    metric: 'val_f1' # 'val_loss', 'val_acc', 'val_f1'
-    mode: 'max' # val_loss의 경우 'min', 나머지는 'max'
+    patience: 8          # Increased patience for longer training
+    metric: 'val_f1'
+    mode: 'max'
 
-# 로깅 및 저장 경로
+# Advanced training optimizations
+optimization:
+  # Gradient clipping
+  gradient_clip_norm: 1.0
+  
+  # Label smoothing for better generalization
+  label_smoothing: 0.1
+  
+  # Warmup for stable training start
+  warmup_epochs: 3
+  warmup_factor: 0.1
+
+# Data augmentation settings
+augmentation:
+  # Basic augmentations
+  rotation_limit: 15
+  brightness_contrast_prob: 0.3
+  noise_prob: 0.2
+  
+  # Document-specific augmentations
+  jpeg_quality_range: [70, 95]
+  blur_prob: 0.2
+  shadow_prob: 0.1
+
+# Logging and checkpointing
 logging:
   log_dir: "logs"
   checkpoint_dir: "checkpoints"
-  log_interval: 10 # N 배치마다 학습 손실 로그 출력
-  memory_logging: true # 메모리 사용량 로그 출력 여부
+  log_interval: 10        # More frequent logging
+  memory_logging: true
+  
+  # Save checkpoints more frequently
+  save_freq: 10           # Save every 5 epochs
+  save_best_only: false  # Keep multiple checkpoints
+
+# Resource utilization settings for high-performance GPU
+gpu_optimization:
+  # Enable optimizations
+  torch_compile: true    # PyTorch 2.0 compilation (if available)
+  channels_last: true    # Memory format optimization
+  
+  # Memory management
+  empty_cache_freq: 20   # Clear cache every 20 batches
+  pin_memory: true
+  non_blocking: true
+
+# Validation and testing
+validation:
+  # More comprehensive validation
+  compute_class_metrics: true
+  save_predictions: true
+  plot_curves: true
+
+# Model ensemble settings (optional for final submission)
+ensemble:
+  enabled: false
+  models: ["resnet50", "efficientnet_b3"]
+  weights: [0.6, 0.4]
+
+# Class imbalance handling
+class_balance:
+  # Given your 2.2:1 imbalance ratio
+  use_weighted_loss: true
+  focal_loss_alpha: 0.25
+  focal_loss_gamma: 2.0
+  
+  # Sampling strategy
+  use_balanced_sampler: false  # Try both true/false
+  oversample_minority: false
