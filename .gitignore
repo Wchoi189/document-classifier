@@ -80,3 +80,8 @@ wandb/sweep-*/
 
 # documentation
 docs/
+
+#data
+meta.csv
+train.csv
+test.csv
