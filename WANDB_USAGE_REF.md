@@ -15,7 +15,7 @@ wandb login
 ```
 
 ### 2단계: 설정 파일 업데이트
-**config/config.yaml에 다음 내용을 추가하세요:**
+**configs/config.yaml에 다음 내용을 추가하세요:**
 
 ```yaml
 # WandB 설정 추가
@@ -49,10 +49,10 @@ device: 'cuda'
 
 ```python
 # 이 라인을:
-from trainer.trainer import Trainer
+from src.trainer.trainer import Trainer
 
 # 이렇게 변경:
-from trainer.wandb_trainer import WandBTrainer
+from src.trainer.wandb_trainer import WandBTrainer
 
 # 그리고 이 라인을:
 trainer = Trainer(model, optimizer, scheduler, loss_fn, train_loader, val_loader, device, config)
@@ -67,26 +67,28 @@ trainer = WandBTrainer(model, optimizer, scheduler, loss_fn, train_loader, val_l
 ### WandB로 학습하기
 ```bash
 # config.yaml에서 WandB를 활성화한 후:
-python train.py --config config/config.yaml
+python -m scripts.train --config configs/config0701.yaml
 
 # WandB 임시 비활성화:
-python train.py --config config/config.yaml --wandb-disabled
+python -m scripts.train --config configs/config.yaml --wandb-disabled
 
 # 오프라인으로 실행 (나중에 동기화):
-python train.py --config config/config.yaml --wandb-offline
-
+python -m scripts.train --config configs/config.yaml --wandb-offline
 ```
 
 ### WandB로 예측하기
 ```bash
 # WandB 로깅과 함께 예측:
-python predict.py predict_images_wandb checkpoints/best_model.pth data/dataset/test/ --wandb-project document-classifier
+python -m predict predict_images_wandb checkpoints/best_model.pth data/dataset/test/ --wandb-project document-classifier
 
 # WandB 없이 예측:
-python predict.py predict_images_wandb checkpoints/best_model.pth data/dataset/test/
+python -m predict predict_images_wandb checkpoints/best_model.pth data/dataset/test/
 
 # 일반 예측 (WandB 사용 안 함):
-python predict.py predict_images checkpoints/best_model.pth data/dataset/test/
+python -m predict predict_images checkpoints/best_model.pth data/dataset/test/
+
+# last_model.pth로 예측 실행:
+python -m predict predict_images checkpoints/last_model.pth data/dataset/test/ --output my_last_predictions.csv
 
 ```
 
@@ -131,7 +133,7 @@ wandb agent <sweep_id>
 
 1. **✅ Install WandB**: `pip install wandb`
 2. **✅ Login**: `wandb login`
-3. **✅ Add config**: Update `config/config.yaml` with wandb section
+3. **✅ Add config**: Update `configs/config.yaml` with wandb section
 4. **✅ Create trainer**: Add `trainer/wandb_trainer.py`
 5. **✅ Update train.py**: Import `WandBTrainer` instead of `Trainer`
 6. **✅ Update predict.py**: Add `predict_images_wandb` function

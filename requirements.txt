@@ -35,3 +35,6 @@ tqdm>=4.62.0
 PyYAML>=6.0
 fire>=0.7.0
 icecream>=2.1.5
+
+# ML Monitoring
+wandb>=0.16.0

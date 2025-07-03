@@ -1,6 +1,6 @@
 import wandb
 import yaml
-from utils.utils import load_config
+from src.utils.utils import load_config
 
 def run_sweep():
     # Initialize sweep
@@ -14,7 +14,7 @@ def run_sweep():
         wandb.init()
         
         # Get sweep parameters
-        config = load_config('config/config.yaml')
+        config = load_config('configs/config.yaml')
         
         # Update config with sweep parameters
         for key, value in wandb.config.items():
