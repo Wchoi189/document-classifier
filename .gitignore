@@ -82,7 +82,9 @@ wandb/sweep-*/
 docs/*
 
 # Data files
-data/
+data/*/*/*
+data/dataset/
+
 
 # Config files - ignore all except main config.yaml
 configs/*
@@ -99,3 +101,5 @@ outputs/
 # Development requirements and submissions
 requirements-dev.txt
 submission.csv
+# Keep .py files under src/data
+!src/data/*.py
