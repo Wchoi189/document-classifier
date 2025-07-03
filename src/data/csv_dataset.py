@@ -4,6 +4,12 @@ import pandas as pd
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
 
+# In src/data/csv_dataset.py, replace your current transform with:
+from src.data.single_augmentations import get_perspective_transform
+
+# Then in your dataset creation:
+train_transforms = get_perspective_transform(224, 224, (0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+
 class CSVDocumentDataset(Dataset):
     """Document dataset that reads labels from CSV file"""
     
