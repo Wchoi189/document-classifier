@@ -1,11 +1,33 @@
-import project_setup
-import argparse
+#!/usr/bin/env python3
+"""
+Training script with proper path handling
+"""
+
+# Method 1: Import the project root __init__.py to setup paths
+import sys
+from pathlib import Path
+
+# Add parent directory (project root) to path
+project_root = Path(__file__).parent.parent.resolve()
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+# Now import the project __init__ to setup everything
+try:
+    import __init__  # This will run the project setup
+except ImportError:
+    print("Warning: Could not import project __init__.py")
+
+# Now all your normal imports should work
+import hydra
+from omegaconf import DictConfig, OmegaConf
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import os
-from src.utils.utils import load_config, set_seed
+
+from src.utils.utils import set_seed
 from src.data.csv_dataset import CSVDocumentDataset
 from src.data.augmentation import get_train_transforms, get_valid_transforms, get_document_transforms
 from src.models.model import create_model
@@ -13,22 +35,46 @@ from src.trainer.trainer import Trainer
 from src.trainer.wandb_trainer import WandBTrainer
 import pandas as pd
 from src.inference.predictor import predict_from_checkpoint
-from pathlib import Path
 
 
-def main(config_path):
+@hydra.main(version_base=None, config_path="../configs", config_name="config")
+def main(cfg: DictConfig) -> None:
+    """
+    Main training function with Hydra configuration management.
+    
+    Examples:
+        # Run with default config
+        python scripts/train.py
+        
+        # Override specific parameters
+        python scripts/train.py model=efficientnet train.batch_size=64
+        
+        # Use different experiment config
+        python scripts/train.py experiment=resnet_experiment
+        
+        # Quick test run
+        python scripts/train.py experiment=quick_test
+    """
+    
+    print("🚀 Starting training with Hydra configuration management")
+    print(f"📋 Experiment: {cfg.experiment.name}")
+    print(f"📝 Description: {cfg.experiment.description}")
+    print(f"🏷️  Tags: {cfg.experiment.tags}")
+    
+    # Convert OmegaConf to regular dict for compatibility with existing code
+    config = OmegaConf.to_container(cfg, resolve=True)
+    
     # --- 1. Setup ---
-    config = load_config(config_path)
     set_seed(config['seed'])
     device = torch.device(config['device'] if torch.cuda.is_available() else 'cpu')
 
-    # Print debug info once inside main function
     print(f"Using device: {device}")
     print(f"CUDA available: {torch.cuda.is_available()}")
     if torch.cuda.is_available():
         print(f"CUDA device: {torch.cuda.get_device_name()}")
 
-   # --- 2. Data Preparation ---
+    # --- 2. Data Preparation ---
+    # Handle augmentation choice
     if config['data'].get('use_document_augmentation', False):
         train_transforms = get_document_transforms(
             height=config['data']['image_size'], 
@@ -43,50 +89,38 @@ def main(config_path):
             mean=config['data']['mean'], 
             std=config['data']['std']
         )
+        
     valid_transforms = get_valid_transforms(
-        height=config['data']['image_size'], width=config['data']['image_size'],
-        mean=config['data']['mean'], std=config['data']['std']
+        height=config['data']['image_size'], 
+        width=config['data']['image_size'],
+        mean=config['data']['mean'], 
+        std=config['data']['std']
     )
-    # A single call now handles all training augmentations based on your config
-    # train_transforms = create_document_transforms(
-    #     config=config['augmentations'],          # Pass the detailed augmentation config section
-    #     height=config['data']['image_size'],
-    #     width=config['data']['image_size'],
-    #     mean=config['data']['mean'],
-    #     std=config['data']['std']
-    # )
 
-    # # The validation transforms remain the same
-    # valid_transforms = get_valid_transforms(
-    #     height=config['data']['image_size'],
-    #     width=config['data']['image_size'],
-    #     mean=config['data']['mean'],
-    #     std=config['data']['std']
-    # )
-
-
+    # Create datasets
     train_dataset = CSVDocumentDataset(
-    root_dir=config['data']['root_dir'], 
-    csv_file=config['data']['csv_file'],
-    meta_file=config['data']['meta_file'],
-    split='train', 
-    transform=train_transforms,
-    val_size=config['data']['val_size'],
-    seed=config['seed']
-)
+        root_dir=config['data']['root_dir'], 
+        csv_file=config['data']['csv_file'],
+        meta_file=config['data']['meta_file'],
+        split='train', 
+        transform=train_transforms,
+        val_size=config['data']['val_size'],
+        seed=config['seed']
+    )
+    
     val_dataset = CSVDocumentDataset(
-    root_dir=config['data']['root_dir'], 
-    csv_file=config['data']['csv_file'],
-    meta_file=config['data']['meta_file'],
-    split='val', 
-    transform=valid_transforms,
-    val_size=config['data']['val_size'],
-    seed=config['seed']
-)
-    # Use num_workers=0 when using CUDA to avoid multiprocessing issues
+        root_dir=config['data']['root_dir'], 
+        csv_file=config['data']['csv_file'],
+        meta_file=config['data']['meta_file'],
+        split='val', 
+        transform=valid_transforms,
+        val_size=config['data']['val_size'],
+        seed=config['seed']
+    )
+
+    # Create data loaders
     num_workers = config['data']['num_workers'] if config['data']['num_workers'] > 0 else 0
     
-    # And add the multiprocessing parameters:
     train_loader = DataLoader(
         train_dataset, 
         batch_size=config['train']['batch_size'], 
@@ -104,10 +138,10 @@ def main(config_path):
         num_workers=num_workers,
         pin_memory=True if device.type == 'cuda' else False,
         multiprocessing_context='spawn' if num_workers > 0 else None,
-        persistent_workers=True if num_workers > 0 else False  # Optional for val_loader
+        persistent_workers=True if num_workers > 0 else False
     )
 
-    # --- 3. Model, Loss, Optimizer ---
+    # --- 3. Model, Loss, Optimizer, Scheduler ---
     num_classes = len(train_dataset.classes)
     print(f"Number of classes: {num_classes}")
     print(f"Training samples: {len(train_dataset)}")
@@ -124,10 +158,9 @@ def main(config_path):
         print(f"Image value range: [{images.min():.3f}, {images.max():.3f}]")
         print(f"Image mean: {images.mean():.3f}, std: {images.std():.3f}")
         print(f"Labels shape: {labels.shape}")
-        print(f"Labels: {labels[:10]}")  # First 10 labels
+        print(f"Labels: {labels[:10]}")
         print(f"Label range: [{labels.min()}, {labels.max()}]")
         
-        # Verify labels are in correct range
         if labels.max() >= num_classes:
             print(f"⚠️  WARNING: Found label {labels.max()} but only {num_classes} classes!")
         else:
@@ -144,84 +177,66 @@ def main(config_path):
         pretrained=config['model']['pretrained']
     ).to(device)
 
-
     print(f"✅ Model created: {config['model']['name']}")
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     # Loss function
-    loss_fn = getattr(nn, config['train']['loss'])()
+    loss_fn = nn.CrossEntropyLoss()
     
-    # Optimizer
-    optimizer = getattr(optim, config['train']['optimizer'])(
-        model.parameters(), 
-        lr=config['train']['learning_rate'],
-        weight_decay=config['train']['weight_decay']
-    )
+    # Optimizer - handle both old and new config formats
+    optimizer_config = config['optimizer']
+    if optimizer_config['name'] == 'AdamW':
+        optimizer = optim.AdamW(
+            model.parameters(), 
+            lr=optimizer_config['learning_rate'],
+            weight_decay=optimizer_config['weight_decay']
+        )
+    elif optimizer_config['name'] == 'Adam':
+        optimizer = optim.Adam(
+            model.parameters(), 
+            lr=optimizer_config['learning_rate'],
+            weight_decay=optimizer_config['weight_decay']
+        )
+    elif optimizer_config['name'] == 'SGD':
+        optimizer = optim.SGD(
+            model.parameters(), 
+            lr=optimizer_config['learning_rate'],
+            weight_decay=optimizer_config['weight_decay'],
+            momentum=optimizer_config.get('momentum', 0.9)
+        )
+    else:
+        raise ValueError(f"Unsupported optimizer: {optimizer_config['name']}")
     
-    # Scheduler (optional)
+    # Scheduler
     scheduler = None
-    if config['train'].get('scheduler'):
-        scheduler_class = getattr(optim.lr_scheduler, config['train']['scheduler'])
-        scheduler = scheduler_class(optimizer, **config['train']['scheduler_params'])
-
-    # --- 4. Training ---
-    # trainer = Trainer(model, optimizer, scheduler, loss_fn, train_loader, val_loader, device, config)
-    # trainer.train()
+    scheduler_config = config['scheduler']
+    if scheduler_config['name'] == 'CosineAnnealingWarmRestarts':
+        scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+            optimizer,
+            T_0=scheduler_config['T_0'],
+            T_mult=scheduler_config['T_mult'],
+            eta_min=scheduler_config['eta_min']
+        )
+    elif scheduler_config['name'] == 'CosineAnnealingLR':
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=scheduler_config['T_max'],
+            eta_min=scheduler_config['eta_min']
+        )
+    elif scheduler_config['name'] == 'StepLR':
+        scheduler = optim.lr_scheduler.StepLR(
+            optimizer,
+            step_size=scheduler_config['step_size'],
+            gamma=scheduler_config['gamma']
+        )
 
     # --- 4. Training with WandB ---
     trainer = WandBTrainer(model, optimizer, scheduler, loss_fn, train_loader, val_loader, device, config)
     trainer.train()
-    # --- ADD THIS ENTIRE BLOCK ---
-    # Check if the flag to predict with the last model was passed
-    if args.predict_last:
-        print("\n" + "="*50)
-        print("🚀 Running prediction on the FINAL model state...")
-        checkpoint_path = config['logging']['checkpoint_dir']
-        cfg_data_root_dir = config['data']['root_dir']
-        last_checkpoint_path = os.path.join(checkpoint_path, 'last_model.pth')
-        
-        if not os.path.exists(last_checkpoint_path):
-            print(f"❌ Could not find final model at {last_checkpoint_path}. Aborting prediction.")
-            return
 
-        # Use the imported function to get predictions
-        results = predict_from_checkpoint(
-            checkpoint_path=last_checkpoint_path,
-            input_path=os.path.join(cfg_data_root_dir, 'test'), # Path to your test data
-            config=config,
-            device=device
-        )
+    print(f"\n🎉 Training completed for experiment: {cfg.experiment.name}")
+    print(f"📊 Check your results in the outputs directory")
 
-        if results:
-            df_results = pd.DataFrame(results)
-            
-            # Create a submission file
-            submission_df = pd.DataFrame({
-                'ID': df_results['filename'],
-                'target': df_results['predicted_target']
-            }).sort_values('ID').reset_index(drop=True)
-            
-            output_path = args.predict_output
-            submission_df.to_csv(output_path, index=False)
-            print(f"✅ Prediction complete. Submission file saved to: {output_path}")
-        else:
-            print("⚠️ Prediction did not return any results.")
-    # --------------------------------
-
-    print("\nScript finished.")
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Train a document classification model.")
-    parser.add_argument('--config', type=str, required=True, help="Path to the config YAML file.")
-    parser.add_argument('--wandb-offline', action='store_true', help="Run WandB in offline mode.")
-    parser.add_argument('--wandb-disabled', action='store_true', help="Disable WandB logging.")
-    args = parser.parse_args()
-
-    # Handle WandB mode
-    if args.wandb_offline:
-        os.environ["WANDB_MODE"] = "offline"
-    elif args.wandb_disabled:
-        os.environ["WANDB_MODE"] = "disabled"
-    
-    # The main function is now simpler
-    main(args.config)
+    main()

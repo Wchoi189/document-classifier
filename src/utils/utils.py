@@ -3,12 +3,12 @@ import torch
 import random
 import numpy as np
 import os
+from src.utils.config_utils import load_config_legacy, normalize_config_structure
 
 def load_config(config_path):
-    """YAML 설정 파일을 로드합니다."""
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = yaml.safe_load(f)
-    return config
+    """YAML 설정 파일을 로드합니다. (Now supports both legacy and Hydra)"""
+    config = load_config_legacy(config_path)
+    return normalize_config_structure(config)
 
 def set_seed(seed):
     """재현성을 위해 랜덤 시드를 설정합니다."""
