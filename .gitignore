@@ -99,6 +99,3 @@ outputs/
 # Development requirements and submissions
 requirements-dev.txt
 submission.csv
-
-# Checkpoint files - ignore everything in checkpoints directory
-checkpoints/

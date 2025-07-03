@@ -3,7 +3,7 @@
 
 # WandB Configuration
 wandb:
-  enabled: true
+  enabled: false
   project: "document-classifier"
   entity: null
   name: None
@@ -36,8 +36,14 @@ data:
   num_workers: 0         # Increased for high-perf GPU (adjust based on CPU cores)
   mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
-  use_document_augmentation: true  # Enable for better generalization
+  use_document_augmentation: false  # Enable for better generalization
 
+paths:
+  output_dir: "outputs"
+  prediction_dir: "predictions"
+  model_dir: "models"
+  batch_dir: "batch" # Subdirectory for batch results
+  batch_summary_filename: "batch_summary.csv"
 # Model configuration
 model:
   name: "resnet50"
@@ -45,8 +51,8 @@ model:
 
 # Training configuration - optimized for high-performance GPU
 train:
-  epochs: 50             # Increased for better convergence
-  batch_size: 128        # Larger batch size for high-perf GPU
+  epochs: 1             # Increased for better convergence
+  batch_size: 1        # Larger batch size for high-perf GPU
   optimizer: 'AdamW'     # Better than Adam for most cases
   loss: 'CrossEntropyLoss'
 
@@ -96,11 +102,11 @@ augmentation:
 
 # Logging and checkpointing
 logging:
-  log_dir: "logs"
-  checkpoint_dir: "checkpoints"
-  log_interval: 10        # More frequent logging
+  log_interval: 10
   memory_logging: true
-  
+  save_freq: 10
+  save_best_only: false
+
   # Save checkpoints more frequently
   save_freq: 10           # Save every 5 epochs
   save_best_only: false  # Keep multiple checkpoints

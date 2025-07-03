@@ -3,13 +3,53 @@ import os
 import cv2
 import pandas as pd
 from tqdm import tqdm
-from PIL import Image
 import wandb
 import numpy as np
-
+from datetime import datetime
 from pathlib import Path
 from src.models.model import create_model
 from src.data.augmentation import get_valid_transforms
+
+def save_predictions(results: list, config: dict):
+    """
+    Saves prediction results to timestamped files.
+
+    Generates two files:
+    1. predictions_{timestamp}.csv: Detailed results with confidence scores.
+    2. submission_{timestamp}.csv: Two-column file for submission.
+
+    Args:
+        results (list): A list of prediction result dictionaries.
+        output_dir (str): The directory to save the files.
+    """
+    if not results:
+        print("⚠️ No results to save.")
+        return
+
+    # Ensure the output directory exists
+    paths_config = config.get('paths', {})
+    output_dir = Path(paths_config.get('output_dir', 'outputs'))
+    prediction_dir = Path(paths_config.get('prediction_dir', 'predictions'))
+    output_path = output_dir / prediction_dir
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    # Generate a 4-digit timestamp (HHMM)
+    timestamp = datetime.now().strftime("%H%M")
+
+    # --- Save detailed and submission files ---
+    df_results = pd.DataFrame(results)
+    detailed_filename = output_path / f"predictions_{timestamp}.csv"
+    df_results.to_csv(detailed_filename, index=False)
+    print(f"💾 Detailed predictions saved to: {detailed_filename}")
+
+    # --- 2. Save Formatted Submission File ---
+    submission_df = pd.DataFrame({
+        'ID': df_results['filename'],
+        'target': df_results['predicted_target']
+    }).sort_values('ID').reset_index(drop=True)
+    submission_filename = output_path / f"submission_{timestamp}.csv"
+    submission_df.to_csv(submission_filename, index=False)
+    print(f"📄 Submission file ready: {submission_filename}")
 
 def predict_from_checkpoint(checkpoint_path, input_path, config, device, wandb_project=None):
     """
@@ -65,7 +105,7 @@ def predict_from_checkpoint(checkpoint_path, input_path, config, device, wandb_p
     
     # Load checkpoint
     try:
-        checkpoint_data = torch.load(checkpoint_path, map_location=device)
+        checkpoint_data = torch.load(str(checkpoint_path), map_location=device)
         model.load_state_dict(checkpoint_data)
         print(f"✅ Model loaded successfully")
     except Exception as e:

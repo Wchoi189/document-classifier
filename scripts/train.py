@@ -12,7 +12,7 @@ from src.models.model import create_model
 from src.trainer.trainer import Trainer
 from src.trainer.wandb_trainer import WandBTrainer
 import pandas as pd
-from src.inference.predict import predict_from_checkpoint
+from src.inference.predictor import predict_from_checkpoint
 from pathlib import Path
 
 
@@ -21,9 +21,7 @@ def main(config_path):
     config = load_config(config_path)
     set_seed(config['seed'])
     device = torch.device(config['device'] if torch.cuda.is_available() else 'cpu')
-    os.makedirs(config['logging']['log_dir'], exist_ok=True)
-    os.makedirs(config['logging']['checkpoint_dir'], exist_ok=True)
-    
+
     # Print debug info once inside main function
     print(f"Using device: {device}")
     print(f"CUDA available: {torch.cuda.is_available()}")
@@ -215,31 +213,15 @@ def main(config_path):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train a document classification model.")
     parser.add_argument('--config', type=str, required=True, help="Path to the config YAML file.")
-    parser.add_argument('--wandb-offline', action='store_true', help="Run WandB in offline mode")
-    parser.add_argument('--wandb-disabled', action='store_true', help="Disable WandB logging")
-   
-    # --- ADD THESE ARGUMENTS ---
-    parser.add_argument('--predict-last', action='store_true', 
-                        help='Run prediction on the final model immediately after training.')
-    parser.add_argument('--predict-output', type=str, default='submission_last_model.csv',
-                        help='Output file name for the prediction.')    
+    parser.add_argument('--wandb-offline', action='store_true', help="Run WandB in offline mode.")
+    parser.add_argument('--wandb-disabled', action='store_true', help="Disable WandB logging.")
     args = parser.parse_args()
 
     # Handle WandB mode
     if args.wandb_offline:
         os.environ["WANDB_MODE"] = "offline"
     elif args.wandb_disabled:
-        os.environ["WANDB_MODE"] = "disabled"  
-        
-    try:
-        main(args.config)
-    except RuntimeError as e:
-        if "CUDA" in str(e):
-            print(f"\n❌ CUDA Error: {e}")
-            print("💡 Try these solutions:")
-            print("   1. Update your GPU drivers")
-            print("   2. Reinstall PyTorch with correct CUDA version")
-            print("   3. Run with CPU: change 'device: cpu' in config.yaml")
-            print("   4. Reduce batch_size in config.yaml")
-        else:
-            raise e
+        os.environ["WANDB_MODE"] = "disabled"
+    
+    # The main function is now simpler
+    main(args.config)

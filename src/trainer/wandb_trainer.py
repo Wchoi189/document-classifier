@@ -1,3 +1,4 @@
+from pathlib import Path
 import torch
 import wandb
 import numpy as np
@@ -13,6 +14,7 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix
 from src.utils.metrics import calculate_metrics
 from src.utils.utils import EarlyStopping
+
 
 def get_gpu_memory_info():
     """Get current GPU memory usage"""
@@ -42,7 +44,7 @@ class WandBTrainer:
 
         # Check WandB mode from environment variable first, then config
         wandb_mode = os.environ.get("WANDB_MODE", "online")
-        config_wandb_enabled = config.get('wandb', {}).get('enabled', True)  # Default to True
+        config_wandb_enabled = config.get('wandb', {}).get('enabled', "false")  # Default to True
         
         # WandB is enabled if:
         # 1. Environment variable is not "disabled" AND
@@ -88,7 +90,7 @@ class WandBTrainer:
             tags=wandb_config.get('tags', []),
             notes=wandb_config.get('notes', ''),
             config=flat_config,
-            mode=wandb_mode_literal,
+            mode=wandb_mode_literal, # ignore redline
         )
 
         # Watch model if enabled
@@ -170,10 +172,6 @@ class WandBTrainer:
                     samples_logged += 1
                     if samples_logged >= num_samples:
                         break
-        
-        # if wandb_images:
-        #     # commit=False tells wandb to group these logs with the next "committed" log call, which will be your main epoch log.
-        #     wandb.log({f"predictions_epoch_{epoch}": wandb_images}, commit=False) 
         if wandb_images:
             wandb.log({"val/sample_predictions": wandb_images}, step=self.batch_step)     
 
@@ -195,17 +193,6 @@ class WandBTrainer:
         plt.xticks(rotation=45, ha='right')
         plt.yticks(rotation=0)
         plt.tight_layout()
-        
-       
-        # wandb.log({
-        #     "epoch/confusion_matrix_plot": wandb.Image(plt),
-        #     "epoch/confusion_matrix_data": wandb.plot.confusion_matrix(
-        #         probs=None,
-        #         y_true=y_true,
-        #         preds=y_pred,
-        #         class_names=self.class_names
-        #     )
-        # }, commit=False)
 
         wandb.log({
             "val/confusion_matrix_plot": wandb.Image(plt),
@@ -321,14 +308,27 @@ class WandBTrainer:
     
     def train(self):
         """Enhanced training loop with comprehensive WandB logging"""
-        log_dir = self.config['logging']['log_dir']
-        checkpoint_dir = self.config['logging']['checkpoint_dir']
-        
+        # --- THIS IS THE CORRECTED CODE ---
+
+        # 1. Read all paths from the new 'paths' section of the config
+        paths_config = self.config.get('paths', {})
+        output_dir = Path(paths_config.get('output_dir', 'outputs'))
+        log_dir = output_dir / paths_config.get('log_dir', 'logs')
+        model_dir = output_dir / paths_config.get('model_dir', 'models')   
+         
+        # 2. Ensure the directories exist
+        log_dir.mkdir(parents=True, exist_ok=True)
+        model_dir.mkdir(parents=True, exist_ok=True)        
+
+        # The rest of your code now uses these correct, full paths
         es_config = self.config['train']['early_stopping']
+        best_model_path = model_dir / 'best_model.pth' # Build path for EarlyStopping
+
+    
         early_stopping = EarlyStopping(
             patience=es_config['patience'],
             verbose=True,
-            path=os.path.join(checkpoint_dir, 'best_model.pth'),
+            path=best_model_path,
             mode=es_config['mode'],
             metric=es_config['metric']
         )
@@ -336,14 +336,6 @@ class WandBTrainer:
         start_time = time.time()
         print("🚀 Training has started!")
         
-        # # Log model architecture to WandB
-        # if self.wandb_enabled:
-        #     wandb.log({
-        #         "model_parameters": sum(p.numel() for p in self.model.parameters()),
-        #         "trainable_parameters": sum(p.numel() for p in self.model.parameters() if p.requires_grad),
-        #         "model_size_mb": sum(p.numel() * p.element_size() for p in self.model.parameters()) / 1024**2
-        #     })
-        # Log model architecture to WandB (one-time metrics)
         if self.wandb_enabled:
             model_metrics = {
                 "model/total_parameters": sum(p.numel() for p in self.model.parameters()),
@@ -380,30 +372,16 @@ class WandBTrainer:
                   f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | "
                   f"Val Acc: {val_acc:.4f} | Val F1: {val_f1:.4f} | "
                   f"Time: {epoch_time:.1f}s")
-            # --- ADD THIS BLOCK TO SAVE THE EPOCH'S MODEL ---
+                    
             # Define a unique path for the checkpoint of the current epoch
-            epoch_checkpoint_path = os.path.join(checkpoint_dir, f"model_epoch_{epoch}.pth")
-            
-            # Save the model's current state
+            epoch_checkpoint_path = model_dir / f"model_epoch_{epoch}.pth"
             torch.save(self.model.state_dict(), epoch_checkpoint_path)        
 
-            # # WandB logging
-            # if self.wandb_enabled:
-            #     if epoch % 5 == 0 or epoch == self.config['train']['epochs']:
-            #         self._log_sample_predictions(epoch)
-            #         self._log_confusion_matrix(y_true, y_pred, epoch)
-                    
-
-            #     log_data = {
-            #         "epoch": epoch,
-            #         "epoch/train_loss": train_loss,
-            #         "epoch/val_loss": val_loss,
-            #         "epoch/val_accuracy": val_acc,
-            #         "epoch/val_f1": val_f1,
-            #         "epoch/learning_rate": self.optimizer.param_groups[0]['lr']
-            #     }
-            #     wandb.log(log_data)
-
+            # Save the model's current state
+            last_model_path = model_dir / 'last_model.pth'
+            torch.save(self.model.state_dict(), last_model_path)
+            print(f"💾 Final model state saved to: {last_model_path}")
+            
             # WandB epoch logging
             if self.wandb_enabled:
                 # Log training metrics with proper step
@@ -415,15 +393,14 @@ class WandBTrainer:
                     "val/accuracy": val_acc,
                     "val/f1": val_f1,
                 }
+
                 # wandb.log(epoch_log_data, step=epoch)
                 wandb.log(epoch_log_data, step=self.batch_step)
+
                 # Log additional visualizations every 5 epochs
                 if epoch % 5 == 0 or epoch == self.config['train']['epochs']:
                     self._log_sample_predictions(epoch)
                     self._log_confusion_matrix(y_true, y_pred, epoch)
-
-
-
 
             # Track best model
             if val_f1 > best_f1:
@@ -461,20 +438,10 @@ class WandBTrainer:
             
             # # Early stopping
             early_stopping(val_f1 if es_config['metric'] == 'val_f1' else val_loss, self.model)
-            # if early_stopping.early_stop:
-            #     print(f"Early stopping triggered at epoch {epoch}")
-            #     if self.wandb_enabled:
-            #         wandb.log({"early_stopped": True, "early_stop_epoch": epoch})
-            #     break
-  
             
             if early_stopping.early_stop:
             # if wandb.run is not None and getattr(wandb.run, "summary", None) is not None:
                 print(f"Early stopping triggered at epoch {epoch}")
-                # if self.wandb_enabled:
-                #     # Log to summary instead of history to avoid chart issues
-                #     wandb.run.summary["early_stopped"] = True
-                #     wandb.run.summary["early_stop_epoch"] = epoch
                 break       
 
         total_time = time.time() - start_time
@@ -483,9 +450,9 @@ class WandBTrainer:
         
         # --- ADD THIS BLOCK TO SAVE THE FINAL MODEL ---
         # This saves the model state from the very last epoch to a fixed file name.
-        last_checkpoint_path = os.path.join(checkpoint_dir, 'last_model.pth')
-        torch.save(self.model.state_dict(), last_checkpoint_path)
-        print(f"💾 Final model state saved to: {last_checkpoint_path}")
+        last_model_path = model_dir / 'last_model.pth'
+        torch.save(self.model.state_dict(), last_model_path)
+        print(f"💾 Final model state saved to: {last_model_path}")
         
         # --- AFTER THE EPOCH LOOP ---
         if self.wandb_enabled:
@@ -498,6 +465,7 @@ class WandBTrainer:
                 # 2. Create the new name with the F1 score, only if original_name is not None
                 if original_name is not None:
                     new_name = original_name.replace("(f1_score)", f"{best_f1:.4f}")
+                    
                     # 3. Update the run name in WandB
                     wandb.run.name = new_name
                     # No need to call wandb.run.save() here; setting the name is sufficient
@@ -522,8 +490,6 @@ class WandBTrainer:
                     )
                     model_artifact.add_file(early_stopping.path) # Add the file saved by EarlyStopping
                     wandb.log_artifact(model_artifact)
-
-
 
                 # Log the history table separately
                 history_df = pd.DataFrame(self.history)
@@ -557,22 +523,3 @@ class WandBTrainer:
                 "memory_efficiency": memory_efficiency,
                 "gpu_utilization": torch.cuda.utilization() if hasattr(torch.cuda, 'utilization') else 0
             })
-
-    # def _log_augmentation_analysis(self, epoch):
-    #     """Analyze augmentation effectiveness"""
-    #     if epoch % 10 == 0:  # Log every 10 epochs
-    #         # Sample with and without augmentation
-    #         original_transform = self.train_loader.dataset.transform
-            
-    #         # Temporarily disable augmentation
-    #         from src.data.augmentation import get_valid_transforms
-    #         self.train_loader.dataset.transform = get_valid_transforms(
-    #             height=self.config['data']['image_size'],
-    #             width=self.config['data']['image_size'],
-    #             mean=self.config['data']['mean'],
-    #             std=self.config['data']['std']
-    #         )        
-
-
-    #     if self.wandb_enabled:
-    #         wandb.finish()       

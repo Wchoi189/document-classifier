@@ -4,7 +4,7 @@ import os
 import pandas as pd
 from pathlib import Path
 
-from src.inference.predict import predict_from_checkpoint
+from src.inference.predictor import predict_from_checkpoint
 from src.utils.utils import load_config
 
 def predict_with_wandb_logging(checkpoint, input_path, config='configs/config.yaml', 
