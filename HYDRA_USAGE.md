@@ -19,3 +19,5 @@ python scripts/train.py model=efficientnet optimizer=adam scheduler=cosine train
 # 7. Multiple experiments in sequence
 python scripts/train.py experiment=resnet_experiment --multirun
 python scripts/train.py model=resnet50,efficientnet --multirun
+
+
