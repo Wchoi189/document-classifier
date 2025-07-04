@@ -8,7 +8,7 @@ Visual verification script - Compare augmented training images with real test co
 import os
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
+
 from pathlib import Path
 import pandas as pd
 from typing import List, Dict, Tuple, Optional
@@ -18,6 +18,13 @@ import fire
 
 from src.data.augmentation import get_configurable_transforms, get_train_transforms, get_valid_transforms
 from src.utils.config_utils import load_config
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+
+# Set the font family to NanumGothic
+mpl.rcParams['font.family'] = 'NanumGothic'
+mpl.rcParams['axes.unicode_minus'] = False
+
 
 
 class VisualVerificationTool:

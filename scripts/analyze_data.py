@@ -14,7 +14,7 @@ import fire
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.utils.visual_verification import VisualVerificationTool
-from src.analysis.wrong_predictions_explorer import WrongPredictionsExplorer  
+from analysis.wrong_predictions_explorer import WrongPredictionsExplorer  
 from src.utils.test_image_analyzer import TestImageAnalyzer
 
 

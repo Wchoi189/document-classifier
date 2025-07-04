@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import seaborn as sns
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
@@ -146,7 +147,7 @@ class WrongPredictionsExplorer:
         
         return patterns
     
-    def create_error_visualization(self, wrong_preds: pd.DataFrame, patterns: Dict) -> plt.Figure:
+    def create_error_visualization(self, wrong_preds: pd.DataFrame, patterns: Dict) -> Figure:
         """오류 시각화 생성"""
         fig = plt.figure(figsize=(20, 15))
         
@@ -154,7 +155,7 @@ class WrongPredictionsExplorer:
         ax1 = plt.subplot(2, 3, 1)
         if patterns.get('class_errors'):
             class_error_series = pd.Series(patterns['class_errors'])
-            class_error_series.index = [self.class_names.get(idx, f"Class_{idx}") for idx in class_error_series.index]
+            class_error_series.index = pd.Index([self.class_names.get(idx, f"Class_{idx}") for idx in class_error_series.index])
             class_error_series.plot(kind='bar', ax=ax1)
             ax1.set_title('클래스별 오분류 개수', fontsize=12)
             ax1.tick_params(axis='x', rotation=45)
@@ -198,7 +199,7 @@ class WrongPredictionsExplorer:
         plt.tight_layout()
         return fig
     
-    def create_sample_gallery(self, wrong_preds: pd.DataFrame, n_samples: int = 20) -> plt.Figure:
+    def create_sample_gallery(self, wrong_preds: pd.DataFrame, n_samples: int = 20) -> Figure:
         """오분류 샘플 갤러리 생성"""
         if wrong_preds.empty:
             print("⚠️ 표시할 오분류 샘플이 없습니다.")
@@ -215,22 +216,25 @@ class WrongPredictionsExplorer:
         low_conf_wrong = wrong_preds[wrong_preds['confidence'] < 0.6].head(5)
         samples_to_show.extend(low_conf_wrong.to_dict('records'))
         
-        # 3. 나머지 랜덤 샘플
-        remaining_samples = wrong_preds[~wrong_preds.index.isin(
-            list(high_conf_wrong.index) + list(low_conf_wrong.index)
-        )].sample(min(n_samples - len(samples_to_show), len(wrong_preds) - len(samples_to_show)), random_state=42)
-        samples_to_show.extend(remaining_samples.to_dict('records'))
+        # 3. 나머지는 랜덤 샘플링
+        remaining_samples = wrong_preds[~wrong_preds.index.isin([s['filename'] for s in samples_to_show if 'filename' in s])]
+        if len(remaining_samples) > 0:
+            random_samples = remaining_samples.sample(min(n_samples - len(samples_to_show), len(remaining_samples)))
+            samples_to_show.extend(random_samples.to_dict('records'))
         
-        # 실제 이미지 로드 및 갤러리 생성
-        n_cols = 4
+        # 실제 이미지 로드 및 표시
+        n_cols = 5
         n_rows = (len(samples_to_show) + n_cols - 1) // n_cols
         
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(16, 4 * n_rows))
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 4 * n_rows))
         if n_rows == 1:
             axes = axes.reshape(1, -1)
         
-        for idx, sample in enumerate(samples_to_show):
-            row, col = idx // n_cols, idx % n_cols
+        for i, sample in enumerate(samples_to_show):
+            if i >= n_rows * n_cols:
+                break
+                
+            row, col = i // n_cols, i % n_cols
             
             # 이미지 로드
             img_path = self.data_dir / 'train' / sample['filename']
@@ -239,205 +243,188 @@ class WrongPredictionsExplorer:
             
             if img_path.exists():
                 img = cv2.imread(str(img_path))
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                
-                axes[row, col].imshow(img)
-                
-                # 타이틀 정보
-                true_class = self.class_names.get(sample.get('target', -1), 'Unknown')
-                pred_class = self.class_names.get(sample['predicted_target'], 'Unknown')
-                confidence = sample['confidence']
-                
-                title = f"실제: {true_class}\n예측: {pred_class}\n신뢰도: {confidence:.3f}"
-                axes[row, col].set_title(title, fontsize=10)
+                if img is not None:
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                    axes[row, col].imshow(img)
+                    
+                    # 제목 설정
+                    true_class = self.class_names.get(sample.get('target', -1), 'Unknown')
+                    pred_class = self.class_names.get(sample['predicted_target'], 'Unknown')
+                    conf = sample['confidence']
+                    
+                    title = f"실제: {true_class}\n예측: {pred_class}\n신뢰도: {conf:.3f}"
+                    axes[row, col].set_title(title, fontsize=10)
+                else:
+                    axes[row, col].text(0.5, 0.5, 'Image\nLoad\nError', 
+                                      ha='center', va='center', transform=axes[row, col].transAxes)
             else:
-                axes[row, col].text(0.5, 0.5, f"이미지 없음\n{sample['filename']}", 
+                axes[row, col].text(0.5, 0.5, 'Image\nNot\nFound', 
                                   ha='center', va='center', transform=axes[row, col].transAxes)
             
             axes[row, col].axis('off')
         
-        # 빈 subplot 제거
-        for idx in range(len(samples_to_show), n_rows * n_cols):
-            row, col = idx // n_cols, idx % n_cols
+        # 빈 subplot들 숨기기
+        for i in range(len(samples_to_show), n_rows * n_cols):
+            row, col = i // n_cols, i % n_cols
             axes[row, col].axis('off')
         
-        plt.suptitle(f'오분류 샘플 갤러리 (총 {len(samples_to_show)}개)', fontsize=16)
+        plt.suptitle('오분류 샘플 갤러리', fontsize=16)
         plt.tight_layout()
         return fig
     
-    def create_confidence_analysis(self, df: pd.DataFrame) -> plt.Figure:
-        """신뢰도 분석 차트 생성"""
-        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+    def create_confidence_analysis(self, df: pd.DataFrame) -> Dict:
+        """신뢰도 기반 분석"""
+        analysis = {}
         
-        if 'is_correct' in df.columns:
-            correct_preds = df[df['is_correct']]
-            wrong_preds = df[~df['is_correct']]
-            
-            # 1. 신뢰도 분포 비교
-            axes[0, 0].hist(correct_preds['confidence'], bins=30, alpha=0.7, label='정답', color='green')
-            axes[0, 0].hist(wrong_preds['confidence'], bins=30, alpha=0.7, label='오답', color='red')
-            axes[0, 0].set_title('정답 vs 오답 신뢰도 분포')
-            axes[0, 0].set_xlabel('Confidence Score')
-            axes[0, 0].legend()
-            
-            # 2. 신뢰도 구간별 정확도
-            bins = np.arange(0, 1.1, 0.1)
-            df['conf_bin'] = pd.cut(df['confidence'], bins=bins)
-            accuracy_by_conf = df.groupby('conf_bin')['is_correct'].agg(['mean', 'count']).reset_index()
-            
-            axes[0, 1].bar(range(len(accuracy_by_conf)), accuracy_by_conf['mean'], 
-                          alpha=0.7, color='blue')
-            axes[0, 1].set_title('신뢰도 구간별 정확도')
-            axes[0, 1].set_xlabel('Confidence Bins')
-            axes[0, 1].set_ylabel('Accuracy')
-            axes[0, 1].set_xticks(range(len(accuracy_by_conf)))
-            axes[0, 1].set_xticklabels([f"{bin.left:.1f}-{bin.right:.1f}" for bin in accuracy_by_conf['conf_bin']], 
-                                     rotation=45)
+        if df.empty:
+            return analysis
         
-        # 3. 클래스별 평균 신뢰도
-        class_confidence = df.groupby('predicted_target')['confidence'].mean().sort_values(ascending=False)
-        class_confidence.index = [self.class_names.get(idx, f"Class_{idx}") for idx in class_confidence.index]
+        # 신뢰도 구간별 정확도
+        confidence_ranges = [
+            (0.0, 0.5, "매우 낮음"),
+            (0.5, 0.7, "낮음"), 
+            (0.7, 0.9, "보통"),
+            (0.9, 1.0, "높음")
+        ]
         
-        axes[1, 0].bar(range(len(class_confidence)), class_confidence.values, color='orange')
-        axes[1, 0].set_title('클래스별 평균 예측 신뢰도')
-        axes[1, 0].set_xlabel('Classes')
-        axes[1, 0].set_ylabel('Average Confidence')
-        axes[1, 0].set_xticks(range(len(class_confidence)))
-        axes[1, 0].set_xticklabels(class_confidence.index, rotation=45, ha='right')
-        
-        # 4. 신뢰도 vs 정확도 산점도 (클래스별)
-        if 'is_correct' in df.columns:
-            class_stats = df.groupby('predicted_target').agg({
-                'confidence': 'mean',
-                'is_correct': 'mean'
-            }).reset_index()
+        range_analysis = {}
+        for min_conf, max_conf, label in confidence_ranges:
+            mask = (df['confidence'] >= min_conf) & (df['confidence'] < max_conf)
+            subset = df[mask]
             
-            axes[1, 1].scatter(class_stats['confidence'], class_stats['is_correct'], 
-                             s=100, alpha=0.7, color='purple')
-            axes[1, 1].set_title('클래스별 신뢰도 vs 정확도')
-            axes[1, 1].set_xlabel('Average Confidence')
-            axes[1, 1].set_ylabel('Accuracy')
-            
-            # 클래스 라벨 추가
-            for idx, row in class_stats.iterrows():
-                class_name = self.class_names.get(row['predicted_target'], f"C{row['predicted_target']}")
-                axes[1, 1].annotate(class_name, (row['confidence'], row['is_correct']), 
-                                  xytext=(5, 5), textcoords='offset points', fontsize=8)
+            if len(subset) > 0 and 'is_correct' in subset.columns:
+                range_analysis[label] = {
+                    'count': len(subset),
+                    'accuracy': subset['is_correct'].mean(),
+                    'avg_confidence': subset['confidence'].mean()
+                }
+            else:
+                range_analysis[label] = {
+                    'count': len(subset),
+                    'accuracy': None,
+                    'avg_confidence': subset['confidence'].mean() if len(subset) > 0 else 0
+                }
         
-        plt.tight_layout()
-        return fig
+        analysis['confidence_ranges'] = range_analysis
+        
+        # 신뢰도 임계값별 성능
+        thresholds = [0.5, 0.6, 0.7, 0.8, 0.9]
+        threshold_analysis = {}
+        
+        for threshold in thresholds:
+            high_conf = df[df['confidence'] >= threshold]
+            if len(high_conf) > 0 and 'is_correct' in high_conf.columns:
+                threshold_analysis[threshold] = {
+                    'samples_above_threshold': len(high_conf),
+                    'accuracy_above_threshold': high_conf['is_correct'].mean(),
+                    'coverage': len(high_conf) / len(df)
+                }
+        
+        analysis['threshold_analysis'] = threshold_analysis
+        return analysis
     
-    def generate_html_report(self, wrong_preds: pd.DataFrame, patterns: Dict, error_stats: Dict) -> str:
-        """HTML 형태의 상세 분석 보고서 생성"""
+    def generate_html_report(self, wrong_preds: pd.DataFrame, patterns: Dict, 
+                           confidence_analysis: Dict, output_filename: Optional[str] = None):
+        """HTML 보고서 생성"""
+        if output_filename is None:
+            output_filename = "wrong_predictions_report.html"
+        
+        html_path = self.output_dir / output_filename
+        
         html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <title>오분류 분석 보고서</title>
-            <meta charset="UTF-8">
+            <meta charset="utf-8">
             <style>
-                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                body {{ font-family: Arial, sans-serif; margin: 40px; }}
                 .header {{ background-color: #f0f0f0; padding: 20px; border-radius: 5px; }}
-                .section {{ margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }}
-                .stats {{ display: flex; justify-content: space-around; }}
-                .stat-box {{ text-align: center; padding: 10px; background-color: #f9f9f9; border-radius: 5px; }}
+                .section {{ margin: 30px 0; }}
+                .metric {{ display: inline-block; margin: 10px; padding: 15px; 
+                          background-color: #e8f4f8; border-radius: 5px; }}
                 table {{ border-collapse: collapse; width: 100%; }}
                 th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
                 th {{ background-color: #f2f2f2; }}
-                .error-high {{ background-color: #ffcccc; }}
-                .error-medium {{ background-color: #fff2cc; }}
-                .error-low {{ background-color: #ccffcc; }}
+                .error-pair {{ margin: 5px 0; padding: 10px; background-color: #fff2f2; 
+                             border-left: 4px solid #ff4444; }}
             </style>
         </head>
         <body>
             <div class="header">
                 <h1>🔍 오분류 분석 보고서</h1>
-                <p>생성 시간: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                <p>모델의 잘못된 예측에 대한 상세 분석</p>
             </div>
-            
-            <div class="section">
-                <h2>📊 전체 통계</h2>
-                <div class="stats">
-                    <div class="stat-box">
-                        <h3>{error_stats.get('total_samples', 0)}</h3>
-                        <p>전체 샘플</p>
-                    </div>
-                    <div class="stat-box">
-                        <h3>{error_stats.get('correct_predictions', 0)}</h3>
-                        <p>정답 예측</p>
-                    </div>
-                    <div class="stat-box">
-                        <h3>{error_stats.get('wrong_predictions', 0)}</h3>
-                        <p>오답 예측</p>
-                    </div>
-                    <div class="stat-box">
-                        <h3>{error_stats.get('accuracy', 0):.3f}</h3>
-                        <p>정확도</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="section">
-                <h2>🎯 주요 오류 패턴</h2>
         """
         
-        # 혼동되는 클래스 쌍 표 추가
+        # 기본 통계
+        if patterns:
+            html_content += f"""
+            <div class="section">
+                <h2>📊 기본 통계</h2>
+                <div class="metric">
+                    <strong>전체 오분류:</strong> {patterns.get('wrong_predictions', 0)}개
+                </div>
+                <div class="metric">
+                    <strong>오분류율:</strong> {patterns.get('error_rate', 0):.3f}
+                </div>
+                <div class="metric">
+                    <strong>높은 신뢰도 오분류:</strong> {patterns.get('high_confidence_errors', 0)}개
+                </div>
+                <div class="metric">
+                    <strong>낮은 신뢰도 오분류:</strong> {patterns.get('low_confidence_errors', 0)}개
+                </div>
+            </div>
+            """
+        
+        # 가장 혼동되는 클래스 쌍
         if patterns.get('confusion_pairs'):
             html_content += """
-                <h3>가장 자주 혼동되는 클래스 쌍</h3>
-                <table>
-                    <tr><th>실제 클래스</th><th>예측 클래스</th><th>오류 횟수</th></tr>
+            <div class="section">
+                <h2>🔄 가장 혼동되는 클래스 쌍</h2>
             """
             for pair in patterns['confusion_pairs'][:10]:
                 true_class = self.class_names.get(pair['target'], f"Class_{pair['target']}")
                 pred_class = self.class_names.get(pair['predicted_target'], f"Class_{pair['predicted_target']}")
                 html_content += f"""
-                    <tr>
-                        <td>{true_class}</td>
-                        <td>{pred_class}</td>
-                        <td>{pair['count']}</td>
-                    </tr>
+                <div class="error-pair">
+                    <strong>{true_class}</strong> → <strong>{pred_class}</strong>: {pair['count']}회
+                </div>
                 """
-            html_content += "</table>"
+            html_content += "</div>"
         
         # 신뢰도 분석
-        if patterns.get('confidence_distribution'):
+        if confidence_analysis.get('confidence_ranges'):
             html_content += """
-                <h3>신뢰도별 오분류 분포</h3>
+            <div class="section">
+                <h2>📈 신뢰도 구간별 분석</h2>
                 <table>
-                    <tr><th>신뢰도 구간</th><th>오분류 개수</th></tr>
+                    <tr><th>신뢰도 구간</th><th>샘플 수</th><th>정확도</th><th>평균 신뢰도</th></tr>
             """
-            for conf_range, count in patterns['confidence_distribution'].items():
-                html_content += f"<tr><td>{conf_range}</td><td>{count}</td></tr>"
-            html_content += "</table>"
+            for range_name, data in confidence_analysis['confidence_ranges'].items():
+                accuracy_str = f"{data['accuracy']:.3f}" if data['accuracy'] is not None else "N/A"
+                html_content += f"""
+                <tr>
+                    <td>{range_name}</td>
+                    <td>{data['count']}</td>
+                    <td>{accuracy_str}</td>
+                    <td>{data['avg_confidence']:.3f}</td>
+                </tr>
+                """
+            html_content += "</table></div>"
         
         html_content += """
-            </div>
-            
-            <div class="section">
-                <h2>💡 개선 권장사항</h2>
-                <ul>
-                    <li>신뢰도가 높은데 틀린 예측들을 중점적으로 분석</li>
-                    <li>자주 혼동되는 클래스 쌍에 대한 추가 특징 엔지니어링 고려</li>
-                    <li>낮은 신뢰도 예측에 대한 임계값 조정 검토</li>
-                    <li>오분류가 많은 클래스에 대한 추가 훈련 데이터 수집</li>
-                </ul>
-            </div>
         </body>
         </html>
         """
         
-        # HTML 파일 저장
-        html_path = self.output_dir / 'detailed_analysis_report.html'
         with open(html_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
         
+        print(f"📄 HTML 보고서 생성: {html_path}")
         return str(html_path)
     
-    def run_comprehensive_analysis(self, 
-                                  predictions_csv: str, 
-                                  ground_truth_csv: Optional[str] = None,
-                                  n_sample_images: int = 20):
+    def generate_comprehensive_analysis(self, predictions_csv: str, ground_truth_csv: Optional[str] = None):
         """종합 오분류 분석 실행"""
         print("🚀 종합 오분류 분석 시작...")
         
@@ -448,59 +435,103 @@ class WrongPredictionsExplorer:
         wrong_preds, error_stats = self.identify_wrong_predictions(df)
         
         if wrong_preds.empty:
-            print("✅ 모든 예측이 정확합니다!")
+            print("✅ 오분류가 없거나 정답 데이터가 없어 분석을 완료합니다.")
             return
         
         # 3. 오류 패턴 분석
         patterns = self.analyze_error_patterns(wrong_preds)
+        patterns.update(error_stats)
         
-        # 4. 시각화 생성
+        # 4. 신뢰도 분석
+        confidence_analysis = self.create_confidence_analysis(df)
+        
+        # 5. 시각화 생성
         print("📊 시각화 생성 중...")
-        
-        # 오류 분석 차트
         error_viz = self.create_error_visualization(wrong_preds, patterns)
-        error_viz.savefig(self.output_dir / 'error_analysis.png', dpi=300, bbox_inches='tight')
+        viz_path = self.output_dir / 'error_analysis_visualization.png'
+        error_viz.savefig(viz_path, dpi=300, bbox_inches='tight')
         plt.close(error_viz)
         
-        # 샘플 갤러리
-        if len(wrong_preds) > 0:
-            gallery_fig = self.create_sample_gallery(wrong_preds, n_sample_images)
-            if gallery_fig:
-                gallery_fig.savefig(self.output_dir / 'wrong_predictions_gallery.png', dpi=300, bbox_inches='tight')
-                plt.close(gallery_fig)
+        gallery_path = None
+        # 6. 샘플 갤러리 생성
+        print("🖼️ 오분류 샘플 갤러리 생성 중...")
+        gallery_fig = self.create_sample_gallery(wrong_preds, n_samples=20)
+        if gallery_fig:
+            gallery_path = self.output_dir / 'wrong_predictions_gallery.png'
+            gallery_fig.savefig(gallery_path, dpi=300, bbox_inches='tight')
+            plt.close(gallery_fig)
         
-        # 신뢰도 분석
-        confidence_fig = self.create_confidence_analysis(df)
-        confidence_fig.savefig(self.output_dir / 'confidence_analysis.png', dpi=300, bbox_inches='tight')
-        plt.close(confidence_fig)
+        # 7. HTML 보고서 생성
+        print("📄 HTML 보고서 생성 중...")
+        html_path = self.generate_html_report(wrong_preds, patterns, confidence_analysis)
         
-        # 5. HTML 보고서 생성
-        html_report = self.generate_html_report(wrong_preds, patterns, error_stats)
-        
-        # 6. JSON 결과 저장
+        # 8. JSON 분석 결과 저장
+        def convert_np(obj):
+            if isinstance(obj, dict):
+                return {convert_np(k): convert_np(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_np(i) for i in obj]
+            elif isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, (np.floating,)):
+                return float(obj)
+            else:
+                return obj
+
         analysis_results = {
-            'error_stats': error_stats,
-            'patterns': patterns,
-            'wrong_predictions_summary': {
-                'total_wrong': len(wrong_preds),
-                'high_confidence_wrong': len(wrong_preds[wrong_preds['confidence'] > 0.8]),
-                'low_confidence_wrong': len(wrong_preds[wrong_preds['confidence'] < 0.5])
+            'error_patterns': patterns,
+            'confidence_analysis': confidence_analysis,
+            'summary': {
+                'total_wrong_predictions': int(len(wrong_preds)),
+                'most_confused_classes': convert_np(patterns.get('confusion_pairs', [])[:5]),
+                'recommendations': self._generate_recommendations(patterns, confidence_analysis)
             }
         }
+        analysis_results = convert_np(analysis_results)
         
-        with open(self.output_dir / 'analysis_results.json', 'w', encoding='utf-8') as f:
+        json_path = self.output_dir / 'analysis_results.json'
+        with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(analysis_results, f, indent=2, ensure_ascii=False)
         
-        # 결과 요약 출력
-        print("\n✅ 분석 완료!")
-        print(f"📁 결과 저장 위치: {self.output_dir}")
-        print(f"📄 HTML 보고서: {html_report}")
-        print(f"📊 시각화 파일들:")
-        print(f"   - error_analysis.png")
-        print(f"   - wrong_predictions_gallery.png")
-        print(f"   - confidence_analysis.png")
+        print("\n✅ 종합 분석 완료!")
+        print(f"📊 시각화: {viz_path}")
+        print(f"🖼️ 갤러리: {gallery_path if 'gallery_path' is not None in locals() else 'N/A'}")
+        print(f"📄 HTML 보고서: {html_path}")
+        print(f"📋 JSON 결과: {json_path}")
         
-        return str(self.output_dir)
+        return {
+            'visualization': str(viz_path),
+            'gallery': str(gallery_path) if 'gallery_path' in locals() else None,
+            'html_report': html_path,
+            'json_results': str(json_path)
+        }
+    
+    def _generate_recommendations(self, patterns: Dict, confidence_analysis: Dict) -> List[str]:
+        """분석 결과 기반 권장사항 생성"""
+        recommendations = []
+        
+        # 높은 신뢰도 오분류가 많은 경우
+        if patterns.get('high_confidence_errors', 0) > patterns.get('low_confidence_errors', 0):
+            recommendations.append("모델이 확신을 가지고 틀리는 경우가 많습니다. 데이터 품질이나 라벨링을 재검토해보세요.")
+        
+        # 특정 클래스에서 오분류가 집중된 경우
+        if patterns.get('class_errors'):
+            max_errors = max(patterns['class_errors'].values())
+            total_errors = sum(patterns['class_errors'].values())
+            if max_errors > total_errors * 0.3:  # 30% 이상이 한 클래스에 집중
+                recommendations.append("특정 클래스에서 오분류가 집중되고 있습니다. 해당 클래스의 데이터 증강을 고려해보세요.")
+        
+        # 낮은 신뢰도 예측이 많은 경우
+        if patterns.get('low_confidence_errors', 0) > patterns.get('high_confidence_errors', 0):
+            recommendations.append("모델이 확신이 없는 예측이 많습니다. 모델 복잡도를 높이거나 더 많은 데이터가 필요할 수 있습니다.")
+        
+        # 혼동되는 클래스 쌍이 명확한 경우
+        if patterns.get('confusion_pairs'):
+            top_confusion = patterns['confusion_pairs'][0]
+            if top_confusion['count'] > 5:  # 5회 이상 혼동
+                recommendations.append(f"클래스 간 혼동이 자주 발생합니다. 유사한 클래스들의 구분 특징을 강화하는 증강 기법을 적용해보세요.")
+        
+        return recommendations
 
 
 def main():

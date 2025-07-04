@@ -9,7 +9,6 @@ import os
 import cv2
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 import json
@@ -19,6 +18,13 @@ from sklearn.cluster import KMeans
 from scipy.spatial.distance import cdist
 
 from src.utils.config_utils import load_config
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+from matplotlib.figure import Figure
+
+# Set the font family to NanumGothic
+mpl.rcParams['font.family'] = 'NanumGothic'
+mpl.rcParams['axes.unicode_minus'] = False
 
 
 class TestImageAnalyzer:
@@ -322,8 +328,8 @@ class TestImageAnalyzer:
         print(f"✅ {len(result_df)}개 대표 샘플 선택 완료")
         
         return result_df
-    
-    def create_sample_gallery(self, selected_samples: pd.DataFrame) -> plt.Figure:
+    def create_sample_gallery(self, selected_samples: pd.DataFrame) -> Figure:
+        """선택된 샘플들의 갤러리 생성"""
         """선택된 샘플들의 갤러리 생성"""
         n_samples = len(selected_samples)
         n_cols = 5
