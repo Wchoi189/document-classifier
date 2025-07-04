@@ -2,40 +2,33 @@
 """
 Training script with proper path handling
 """
-
-# Method 1: Import the project root __init__.py to setup paths
 import sys
 from pathlib import Path
 
-# Add parent directory (project root) to path
-project_root = Path(__file__).parent.parent.resolve()
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+# Add parent to path for setup import
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Now import the project __init__ to setup everything
-try:
-    import __init__  # This will run the project setup
-except ImportError:
-    print("Warning: Could not import project __init__.py")
+from src.utils.project_setup import setup_project_environment
+# Initialize at the start of your script
 
-# Now all your normal imports should work
+from pathlib import Path
 import hydra
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-import os
+from src.data.augmentation import get_configurable_transforms, get_train_transforms, get_valid_transforms
 
-from src.utils.utils import set_seed
+
+from src.utils.config_utils import print_config_summary,normalize_config_structure
+from src.utils.utils import set_seed,load_config
 from src.data.csv_dataset import CSVDocumentDataset
-from src.data.augmentation import get_train_transforms, get_valid_transforms, get_document_transforms
 from src.models.model import create_model
 from src.trainer.trainer import Trainer
 from src.trainer.wandb_trainer import WandBTrainer
 import pandas as pd
 from src.inference.predictor import predict_from_checkpoint
-
 
 @hydra.main(version_base=None, config_path="../configs", config_name="config")
 def main(cfg: DictConfig) -> None:
@@ -56,14 +49,19 @@ def main(cfg: DictConfig) -> None:
         python scripts/train.py experiment=quick_test
     """
     
+    setup_project_environment()
+
     print("🚀 Starting training with Hydra configuration management")
     print(f"📋 Experiment: {cfg.experiment.name}")
     print(f"📝 Description: {cfg.experiment.description}")
     print(f"🏷️  Tags: {cfg.experiment.tags}")
     
-    # Convert OmegaConf to regular dict for compatibility with existing code
-    config = OmegaConf.to_container(cfg, resolve=True)
-    
+     # Use your config utilities to properly handle the configuration
+    config = load_config(cfg)  # This handles the conversion safely
+    config = normalize_config_structure(config)  # Normalize structure
+
+    # Print configuration summary
+    print_config_summary(config)
     # --- 1. Setup ---
     set_seed(config['seed'])
     device = torch.device(config['device'] if torch.cuda.is_available() else 'cpu')
@@ -74,14 +72,24 @@ def main(cfg: DictConfig) -> None:
         print(f"CUDA device: {torch.cuda.get_device_name()}")
 
     # --- 2. Data Preparation ---
-    # Handle augmentation choice
-    if config['data'].get('use_document_augmentation', False):
-        train_transforms = get_document_transforms(
+
+    # Handle augmentation choice with new configuration system
+    augmentation_config = config['data'].get('augmentation', {})
+    augmentation_strategy = augmentation_config.get('strategy', 'basic')
+
+    print(f"🎨 Using augmentation strategy: {augmentation_strategy}")
+    print(f"📊 Augmentation intensity: {(augmentation_config, 'intensity', 0.7)}")
+
+
+    if augmentation_strategy in ['document', 'robust']:
+        train_transforms = get_configurable_transforms(
             height=config['data']['image_size'], 
             width=config['data']['image_size'],
             mean=config['data']['mean'], 
-            std=config['data']['std']
+            std=config['data']['std'],
+            config=augmentation_config
         )
+        print(f"✅ Using configurable {augmentation_strategy} augmentation")
     else:
         train_transforms = get_train_transforms(
             height=config['data']['image_size'], 
@@ -89,17 +97,19 @@ def main(cfg: DictConfig) -> None:
             mean=config['data']['mean'], 
             std=config['data']['std']
         )
-        
+        print("✅ Using basic train augmentation")        
+    
     valid_transforms = get_valid_transforms(
+        
         height=config['data']['image_size'], 
         width=config['data']['image_size'],
         mean=config['data']['mean'], 
         std=config['data']['std']
     )
 
-    # Create datasets
+    # Create datasets using safe_get for all config accesses
     train_dataset = CSVDocumentDataset(
-        root_dir=config['data']['root_dir'], 
+        root_dir=config['data']['root_dir'],
         csv_file=config['data']['csv_file'],
         meta_file=config['data']['meta_file'],
         split='train', 
@@ -107,7 +117,7 @@ def main(cfg: DictConfig) -> None:
         val_size=config['data']['val_size'],
         seed=config['seed']
     )
-    
+
     val_dataset = CSVDocumentDataset(
         root_dir=config['data']['root_dir'], 
         csv_file=config['data']['csv_file'],

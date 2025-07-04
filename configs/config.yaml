@@ -1,5 +1,5 @@
 # Main Hydra configuration file
-# Replaces your existing configs/config.yaml
+# Enhanced with configurable augmentation system
 
 defaults:
   - _self_
@@ -35,7 +35,7 @@ wandb:
   watch_model: true
   log_code: true
 
-# Paths configuration (keeping your existing structure)
+# Paths configuration
 paths:
   output_dir: "outputs"
   prediction_dir: "predictions"
@@ -55,7 +55,7 @@ train:
     metric: 'val_f1'
     mode: 'max'
 
-# Data configuration
+# ENHANCED: Data configuration with configurable augmentation
 data:
   root_dir: "data/raw"
   csv_file: "data/raw/metadata/train.csv"
@@ -65,9 +65,47 @@ data:
   num_workers: 0
   mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
-  use_document_augmentation: false
+  
+  # ENHANCED: Augmentation Configuration
+  augmentation:
+    # Augmentation strategy selection
+    strategy: "robust"  # Options: "basic", "document", "robust"
+    
+    # Global augmentation intensity (0.0 = minimal, 1.0 = maximum)
+    intensity: 0.7
+    
+    # Category-specific settings
+    geometric:
+      enabled: true
+      intensity: 0.6  # Perspective distortion strength
+      perspective_scale: [0.05, 0.15]  # Min/max perspective distortion
+      rotation_limit: 15  # Basic rotation limit
+      
+    lighting:
+      enabled: true
+      intensity: 0.7  # Lighting variation strength
+      brightness_contrast_limit: 0.3  # ±30% brightness/contrast
+      shadow_probability: 0.5  # Chance of shadow effects
+      gamma_range: [70, 130]  # Gamma correction range
+      
+    quality:
+      enabled: true
+      intensity: 0.5  # Quality degradation strength
+      blur_limit: 7  # Maximum blur amount
+      noise_probability: 0.3  # Chance of noise
+      compression_probability: 0.3  # Chance of compression artifacts
+      
+    # Advanced options
+    advanced:
+      # Test Time Augmentation (for inference)
+      tta_enabled: false
+      tta_transforms: ["horizontal_flip", "rotation"]
+      
+      # Class-specific augmentation (for minority classes)
+      class_balanced: false
+      minority_class_boost: 1.5  # Extra augmentation for minority classes
 
-# Logging and validation
+# Logging and validation (unchanged)
 logging:
   log_interval: 10
   memory_logging: true

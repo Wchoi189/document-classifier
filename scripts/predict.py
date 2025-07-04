@@ -1,5 +1,7 @@
 from typing import Optional
-import project_setup
+from src.utils.project_setup import setup_project_environment
+setup_project_environment()
+
 import torch
 import fire
 from pathlib import Path

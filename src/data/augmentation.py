@@ -31,6 +31,42 @@ def get_valid_transforms(height, width, mean, std):
         A.Normalize(mean=mean, std=std),
         ToTensorV2(),
     ])
+# ADD THIS NEW FUNCTION
+def get_configurable_transforms(height, width, mean, std, config):
+    """Configurable augmentation based on config parameters"""
+    transforms_list = [A.Resize(height=height, width=width)]
+    
+    strategy = config.get('strategy', 'basic')
+    intensity = config.get('intensity', 0.7)
+    
+    if strategy == 'robust':
+        # Perspective distortion
+        transforms_list.append(
+            A.Perspective(scale=(0.05, 0.15), keep_size=True, p=0.6 * intensity)
+        )
+        
+        # Lighting variations
+        transforms_list.append(
+            A.OneOf([
+                A.RandomBrightnessContrast(brightness_limit=0.3 * intensity, contrast_limit=0.3 * intensity, p=1.0),
+                A.RandomShadow(shadow_roi=(0, 0.5, 1, 1), shadow_dimension=5, p=1.0),
+                A.RandomGamma(gamma_limit=(70, 130), p=1.0),
+            ], p=0.7 * intensity)
+        )
+        
+        # Quality degradation
+        transforms_list.append(
+            A.OneOf([
+                A.MotionBlur(blur_limit=7, p=1.0),
+                A.GaussianBlur(blur_limit=(3, 7), p=1.0),
+                A.GaussNoise(p=1.0),
+            ], p=0.5 * intensity)
+        )
+        
+        transforms_list.append(A.ImageCompression(p=0.3 * intensity))
+    
+    transforms_list.extend([A.Normalize(mean=mean, std=std), ToTensorV2()])
+    return A.Compose(transforms_list)
 
 # Create picklable wrapper classes for Augraphy transforms
 class AugraphyTransform:
@@ -93,56 +129,61 @@ class ShadowCastTransform(AugraphyTransform):
             raise ImportError("Augraphy not available")
 
 
-def get_document_transforms(height, width, mean, std):
-    """
-    ROBUST document transforms - WORKING VERSION
+# def get_document_transforms(height, width, mean, std):
+#     """
+#     ROBUST document transforms - WORKING VERSION
     
-    Replaces the problematic Augraphy-based function with tested,
-    working transforms that handle real-world test conditions.
+#     Replaces the problematic Augraphy-based function with tested,
+#     working transforms that handle real-world test conditions.
     
-    Based on successful tests from single_augmentations.py
-    """
-    return A.Compose([
-        A.Resize(height=height, width=width),
+#     Based on successful tests from single_augmentations.py
+#     """
+#     return A.Compose([
+#         A.Resize(height=height, width=width),
         
-        # 1. Geometric distortions (like your test images)
-        A.Perspective(
-            scale=(0.05, 0.15),  # Document photographed at angle
-            keep_size=True,
-            p=0.6                # 60% chance
-        ),
+#         # 1. Geometric distortions (like your test images)
+#         A.Perspective(
+#             scale=(0.05, 0.15),  # Document photographed at angle
+#             keep_size=True,
+#             p=0.6                # 60% chance
+#         ),
         
-        # 2. Lighting and shadow issues
-        A.OneOf([
-            A.RandomBrightnessContrast(
-                brightness_limit=0.3,
-                contrast_limit=0.3,
-                p=1.0
-            ),
-            A.RandomShadow(
-                shadow_roi=(0, 0.5, 1, 1),
-                shadow_dimension=5,
-                p=1.0
-            ),
-            A.RandomGamma(
-                gamma_limit=(70, 130),
-                p=1.0
-            ),
-        ], p=0.7),  # 70% chance
+#         # 2. Lighting and shadow issues
+#         A.OneOf([
+#             A.RandomBrightnessContrast(
+#                 brightness_limit=0.3,
+#                 contrast_limit=0.3,
+#                 p=1.0
+#             ),
+#             A.RandomShadow(
+#                 shadow_roi=(0, 0.5, 1, 1),
+#                 shadow_dimension=5,
+#                 p=1.0
+#             ),
+#             A.RandomGamma(
+#                 gamma_limit=(70, 130),
+#                 p=1.0
+#             ),
+#         ], p=0.7),  # 70% chance
         
-        # 3. Quality degradation
-        A.OneOf([
-            A.MotionBlur(blur_limit=7, p=1.0),
-            A.GaussianBlur(blur_limit=(3, 7), p=1.0),
-            A.GaussNoise(p=1.0),  # Simplified - no problematic params
-        ], p=0.5),  # 50% chance
+#         # 3. Quality degradation
+#         A.OneOf([
+#             A.MotionBlur(blur_limit=7, p=1.0),
+#             A.GaussianBlur(blur_limit=(3, 7), p=1.0),
+#             A.GaussNoise(p=1.0),  # Simplified - no problematic params
+#         ], p=0.5),  # 50% chance
         
-        # 4. Compression artifacts
-        A.ImageCompression(p=0.3),  # Simplified - no problematic params
+#         # 4. Compression artifacts
+#         A.ImageCompression(p=0.3),  # Simplified - no problematic params
         
-        A.Normalize(mean=mean, std=std),
-        ToTensorV2(),
-    ])
+#         A.Normalize(mean=mean, std=std),
+#         ToTensorV2(),
+#     ])
 
+# REPLACE THIS FUNCTION - SAME NAME, NEW CONTENT
+def get_document_transforms(height, width, mean, std):
+    """Document transforms - now uses robust strategy by default"""
+    default_config = {'strategy': 'robust', 'intensity': 0.7}
+    return get_configurable_transforms(height, width, mean, std, default_config)
 # Remove all the problematic Augraphy wrapper classes and fallback function
 # Keep only the three main functions above
