@@ -7,8 +7,7 @@ from sklearn.metrics import classification_report, roc_curve, auc, confusion_mat
 from sklearn.preprocessing import label_binarize
 from typing import List, Any
 
-#FIX: Use the .get() method to safely access dictionary keys
-#and resolve the Pylance "ArgumentType" error.
+
 def log_detailed_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_prob: np.ndarray, class_names: List[str], epoch: int):
     """Log comprehensive metrics to WandB"""
     
@@ -16,27 +15,26 @@ def log_detailed_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_prob: np.ndar
     
     # Log per-class metrics
     for class_name in class_names:
-        class_key = str(class_name)
-        if class_key in report:
-            class_metrics = report[class_key]
-            if isinstance(class_metrics, dict):
-                wandb.log({
-                    f"precision_{class_key}": class_metrics.get('precision'),
-                    f"recall_{class_key}": class_metrics.get('recall'),
-                    f"f1_{class_key}": class_metrics.get('f1-score'),
-                    f"support_{class_key}": class_metrics.get('support')
-                }, step=epoch)
+        class_key = class_name
+        class_metrics = report.get(class_key) if isinstance(report, dict) else None
+        if class_metrics and isinstance(class_metrics, dict):
+            wandb.log({
+                f"precision_{class_key}": class_metrics.get('precision'),
+                f"recall_{class_key}": class_metrics.get('recall'),
+                f"f1_{class_key}": class_metrics.get('f1-score'),
+                f"support_{class_key}": class_metrics.get('support')
+            }, step=epoch)
     
     # Macro and weighted averages
-    macro_avg = report.get('macro avg', {})
-    weighted_avg = report.get('weighted avg', {})
+    macro_avg = report.get('macro avg') if isinstance(report, dict) else None
+    weighted_avg = report.get('weighted avg') if isinstance(report, dict) else None
     wandb.log({
-        "macro_avg_precision": macro_avg.get('precision'),
-        "macro_avg_recall": macro_avg.get('recall'),
-        "macro_avg_f1": macro_avg.get('f1-score'),
-        "weighted_avg_precision": weighted_avg.get('precision'),
-        "weighted_avg_recall": weighted_avg.get('recall'),
-        "weighted_avg_f1": weighted_avg.get('f1-score')
+        "macro_avg_precision": macro_avg.get('precision') if macro_avg else None,
+        "macro_avg_recall": macro_avg.get('recall') if macro_avg else None,
+        "macro_avg_f1": macro_avg.get('f1-score') if macro_avg else None,
+        "weighted_avg_precision": weighted_avg.get('precision') if weighted_avg else None,
+        "weighted_avg_recall": weighted_avg.get('recall') if weighted_avg else None,
+        "weighted_avg_f1": weighted_avg.get('f1-score') if weighted_avg else None
     }, step=epoch)
 
 

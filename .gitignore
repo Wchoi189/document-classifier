@@ -87,8 +87,10 @@ data/dataset/
 
 
 # Config files - ignore all except main config.yaml
-configs/*
-!configs/config.yaml
+
+
+configs/*copy*.yaml
+
 
 # Backup and copy files
 data/augmentation copy.py

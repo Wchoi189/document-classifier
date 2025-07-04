@@ -308,3 +308,85 @@ def convert_config_types(config: Dict[str, Any]) -> Dict[str, Any]:
                 sched_config[key] = float(sched_config[key])
     
     return config
+
+def safe_dict_get(dictionary: Dict[Union[str, int], Any], key: str) -> Any:
+    """
+    Safely get a value from a dictionary that might have string or int keys.
+    
+    This handles the case where classification_report returns a dict with
+    mixed key types (str for class names, int for numeric labels).
+    
+    Args:
+        dictionary: Dictionary with potentially mixed key types
+        key: String key to look up
+        
+    Returns:
+        Value if found, None otherwise
+    """
+    # First try direct string key access
+    if key in dictionary:
+        return dictionary[key]
+    
+    # If not found, try converting key to int and back
+    try:
+        int_key = int(key)
+        if int_key in dictionary:
+            return dictionary[int_key]
+    except (ValueError, TypeError):
+        pass
+    
+    return None
+
+
+def safe_classification_report_access(report: Dict[Any, Any], class_key: str) -> Dict[str, Any]:
+    """
+    Safely access classification report metrics for a specific class.
+    
+    Args:
+        report: Classification report dictionary from sklearn
+        class_key: Class name/label as string
+        
+    Returns:
+        Class metrics dictionary or empty dict if not found
+    """
+    # Use .get() method which is type-safe
+    class_metrics = report.get(class_key)
+    
+    if class_metrics is not None and isinstance(class_metrics, dict):
+        return class_metrics
+    
+    # Try with integer conversion if string key doesn't work
+    try:
+        int_key = int(class_key)
+        class_metrics = report.get(int_key)
+        if class_metrics is not None and isinstance(class_metrics, dict):
+            return class_metrics
+    except (ValueError, TypeError):
+        pass
+    
+    return {}
+
+
+def get_classification_metrics(report: Dict[Any, Any], class_name: Union[str, int]) -> Dict[str, float]:
+    """
+    Type-safe getter for classification report metrics with default values.
+    
+    Args:
+        report: Classification report from sklearn
+        class_name: Class name or label
+        
+    Returns:
+        Dictionary with precision, recall, f1-score, support
+    """
+    key = str(class_name)
+    metrics = report.get(key, {})
+    
+    if isinstance(metrics, dict):
+        return {
+            'precision': float(metrics.get('precision', 0.0)),
+            'recall': float(metrics.get('recall', 0.0)),
+            'f1-score': float(metrics.get('f1-score', 0.0)),
+            'support': int(metrics.get('support', 0))
+        }
+    
+    return {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0}
