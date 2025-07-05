@@ -22,10 +22,9 @@ wandb:
   entity: null
   username: wchoi189
   tags: ["document-classification", "resnet50"]  # 🔧 Updated tags
-  notes: "augmentation on retry"  # 🔧 Updated notes
+  notes: "adamw, cosine_warm_restart, augmentations_robust"  # 🔧 Updated notes
   
   # 🔧 Enhanced logging settings
-  
   log_frequency: 10
   log_images: true
   log_model: false  # 🔧 Changed to true for model artifacts
@@ -66,41 +65,33 @@ data:
   num_workers: 0
   mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
-  use_document_augmentation: true
+  
   # 🔧 FIXED: Augmentation Configuration - Better structure
   augmentation:
     strategy: "robust"  # Options: "basic", "document", "robust"
     intensity: 0.9  # 0.0 = minimal, 1.0 = maximum
-       # 🔧 Added explicit enabled flag
+    enabled: true   # 🔧 Added explicit enabled flag
     
     # Detailed settings for better WandB logging
-    geometric:     
+    geometric:
+      enabled: true
       intensity: 0.6
       perspective_scale: [0.05, 0.15]
       rotation_limit: 15
       
-    lighting:     
+    lighting:
+      enabled: true
       intensity: 0.7
       brightness_contrast_limit: 0.3
       shadow_probability: 0.5
       gamma_range: [70, 130]
       
-    quality:     
+    quality:
+      enabled: true
       intensity: 0.5
       blur_limit: 7
       noise_probability: 0.3
       compression_probability: 0.3
-
-    # Advanced options
-    advanced:
-      # Test Time Augmentation (for inference)
-      tta_enabled: false
-      tta_transforms: ["horizontal_flip", "rotation"]
-      
-      # Class-specific augmentation (for minority classes)
-      class_balanced: false
-      minority_class_boost: 1.5  # Extra augmentation for minority classes
-
 
 # Logging and validation (unchanged)
 logging:

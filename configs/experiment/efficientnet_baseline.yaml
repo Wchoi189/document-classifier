@@ -1,0 +1,27 @@
+# ========================================
+# configs/experiment/efficientnet_baseline.yaml
+# ========================================
+# @package _global_
+name: "efficientnet-b0-baseline"
+description: "EfficientNet-B0 baseline with moderate augmentation"
+tags: ["efficientnet", "baseline", "stable"]
+
+defaults:
+  - override /model: efficientnet
+  - override /optimizer: adamw
+  - override /scheduler: cosine
+
+# Conservative settings for baseline
+train:
+  epochs: 35
+  batch_size: 32
+
+data:
+  augmentation:
+    strategy: "document"
+    intensity: 0.6  # Moderate augmentation
+    enabled: true
+
+wandb:
+  tags: ["efficientnet", "baseline", "moderate-aug"]
+  notes: "Baseline experiment with EfficientNet for comparison"

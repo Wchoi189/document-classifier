@@ -1,0 +1,11 @@
+name: "quick_test"
+description: "Quick test run with 1 epoch"
+tags: ["test", "debug"]
+
+# Overrides for quick testing
+train:
+  epochs: 1
+  batch_size: 8
+
+data:
+  val_size: 0.1

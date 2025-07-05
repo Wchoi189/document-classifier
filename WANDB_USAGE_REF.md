@@ -88,7 +88,7 @@ python -m predict predict_images_wandb checkpoints/best_model.pth data/dataset/t
 python -m predict predict_images checkpoints/best_model.pth data/dataset/test/
 
 # last_model.pth로 예측 실행:
-python -m predict predict_images checkpoints/last_model.pth data/dataset/test/ --output my_last_predictions.csv
+python -m predict predict_images checkpoints/last_model.pth data/dataset/test/ --output my_last_predictions1.csv
 
 ```
 

@@ -1,5 +1,5 @@
 # Main Hydra configuration file
-# Fixed WandB integration + enhanced experiment tracking
+# Enhanced with configurable augmentation system
 
 defaults:
   - _self_
@@ -15,20 +15,19 @@ defaults:
 seed: 42
 device: 'cuda'
 
-# 🔥 FIXED: WandB Configuration - Now properly enabled
+# WandB Configuration (keeping your existing structure)
 wandb:
-  enabled: true  # 🔧 Changed from false to true
+  enabled: false
   project: "document-classifier"
   entity: null
   username: wchoi189
-  tags: ["document-classification", "resnet50"]  # 🔧 Updated tags
-  notes: "augmentation on retry"  # 🔧 Updated notes
+  tags: ["resnet50", "document-classification", "optimized", "high-perf-gpu"]
+  notes: "ResNet-50 for 17-class document classification with 2.2:1 imbalance"
   
-  # 🔧 Enhanced logging settings
-  
+  # Logging settings
   log_frequency: 10
   log_images: true
-  log_model: false  # 🔧 Changed to true for model artifacts
+  log_model: false
   log_gradients: false
   log_confusion_matrix: true
   
@@ -36,7 +35,7 @@ wandb:
   watch_model: true
   log_code: true
 
-# Paths configuration (unchanged)
+# Paths configuration
 paths:
   output_dir: "outputs"
   prediction_dir: "predictions"
@@ -44,7 +43,7 @@ paths:
   batch_dir: "batch"
   batch_summary_filename: "batch_summary.csv"
 
-# Training configuration (unchanged)
+# Training configuration
 train:
   epochs: 30
   batch_size: 32
@@ -56,7 +55,7 @@ train:
     metric: 'val_f1'
     mode: 'max'
 
-# 🔧 ENHANCED: Data configuration with improved augmentation reporting
+# ENHANCED: Data configuration with configurable augmentation
 data:
   root_dir: "data/raw"
   csv_file: "data/raw/metadata/train.csv"
@@ -66,31 +65,36 @@ data:
   num_workers: 0
   mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
-  use_document_augmentation: true
-  # 🔧 FIXED: Augmentation Configuration - Better structure
+  
+  # ENHANCED: Augmentation Configuration
   augmentation:
+    # Augmentation strategy selection
     strategy: "robust"  # Options: "basic", "document", "robust"
-    intensity: 0.9  # 0.0 = minimal, 1.0 = maximum
-       # 🔧 Added explicit enabled flag
     
-    # Detailed settings for better WandB logging
-    geometric:     
-      intensity: 0.6
-      perspective_scale: [0.05, 0.15]
-      rotation_limit: 15
+    # Global augmentation intensity (0.0 = minimal, 1.0 = maximum)
+    intensity: 0.7
+    
+    # Category-specific settings
+    geometric:
+      enabled: true
+      intensity: 0.6  # Perspective distortion strength
+      perspective_scale: [0.05, 0.15]  # Min/max perspective distortion
+      rotation_limit: 15  # Basic rotation limit
       
-    lighting:     
-      intensity: 0.7
-      brightness_contrast_limit: 0.3
-      shadow_probability: 0.5
-      gamma_range: [70, 130]
+    lighting:
+      enabled: true
+      intensity: 0.7  # Lighting variation strength
+      brightness_contrast_limit: 0.3  # ±30% brightness/contrast
+      shadow_probability: 0.5  # Chance of shadow effects
+      gamma_range: [70, 130]  # Gamma correction range
       
-    quality:     
-      intensity: 0.5
-      blur_limit: 7
-      noise_probability: 0.3
-      compression_probability: 0.3
-
+    quality:
+      enabled: true
+      intensity: 0.5  # Quality degradation strength
+      blur_limit: 7  # Maximum blur amount
+      noise_probability: 0.3  # Chance of noise
+      compression_probability: 0.3  # Chance of compression artifacts
+      
     # Advanced options
     advanced:
       # Test Time Augmentation (for inference)
@@ -100,7 +104,6 @@ data:
       # Class-specific augmentation (for minority classes)
       class_balanced: false
       minority_class_boost: 1.5  # Extra augmentation for minority classes
-
 
 # Logging and validation (unchanged)
 logging:

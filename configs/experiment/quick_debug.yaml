@@ -1,0 +1,27 @@
+
+# ========================================
+# configs/experiment/quick_debug.yaml
+# ========================================
+# @package _global_
+name: "debug-quick-test"
+description: "Quick debug run with minimal epochs"
+tags: ["debug", "test", "quick"]
+
+# Fast training for debugging
+train:
+  epochs: 3
+  batch_size: 16
+  
+data:
+  val_size: 0.1  # Small validation set
+  num_workers: 0  # Avoid multiprocessing issues
+  
+  augmentation:
+    strategy: "basic"
+    intensity: 0.5
+    enabled: true
+
+wandb:
+  enabled: true  # Still log for debugging
+  tags: ["debug", "quick-test"]
+  notes: "Quick debug run - 3 epochs only"

@@ -1,6 +1,11 @@
-from typing import Optional
+import sys
+from pathlib import Path
+
+# Add parent to path for setup import
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.utils.project_setup import setup_project_environment
 setup_project_environment()
+from typing import Optional
 
 import torch
 import fire
@@ -25,6 +30,7 @@ class PredictionCLI:
         print("🚀 Starting prediction...")
         config = load_config(config_path)
 
+        
 
 
         # Determine the checkpoint path
