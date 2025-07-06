@@ -10,11 +10,11 @@ device: 'cuda'
 
 defaults:
   - _self_
-  - experiment: default
   - model: resnet50
   - optimizer: adamw
   - scheduler: cosine_warm_restart
   - data: document
+  - hydra: default
   - override hydra/hydra_logging: disabled  # ← Remove "override " prefix
   - override hydra/job_logging: disabled    # ← Remove "override " prefix
 
@@ -34,11 +34,6 @@ experiment:
 # Centralized location for all input/output paths.
 
 paths:
-  # # Input data
-  # root_dir: "data/raw"
-  # csv_file: "data/raw/metadata/train.csv"
-  # meta_file: "data/raw/metadata/meta.csv"
-
   # Output directories
   output_dir: "outputs"
   # log_dir: "outputs/logs" # not working
@@ -84,7 +79,7 @@ data:
 # All data augmentation parameters are grouped here for clarity.
 
 augmentation:
-  enabled: true # Master switch for all augmentations
+  # enabled: true # Master switch for all augmentations
   strategy: "robust" # Options: "basic", "document", "robust"
   intensity: 0.9 # Global intensity modifier (0.0 = minimal, 1.0 = maximum)
 
@@ -131,7 +126,7 @@ train:
 # Configuration for Weights & Biases logging.
 
 wandb:
-  enabled: true
+  # enabled: true
   project: "document-classifier"
   entity: null # Specify your WandB entity (username or team)
   username: wchoi189

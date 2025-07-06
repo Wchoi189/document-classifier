@@ -66,18 +66,29 @@ class WandBTrainer:
         """🔧 ENHANCED: WandB 초기화 - Hydra 실험 정보 포함"""
         wandb_config = self.config['wandb']
         wandb_username = self.config.get('wandb', {}).get('username', 'default-user')
-        # 🔧 실험 정보를 config에서 가져오기
-
+        
+        # ✅ FIXED: Use correct config structure
         experiment_info = self.config.get('experiment', {})
         experiment_name = experiment_info.get('name', 'hydra_experiment')
         experiment_description = experiment_info.get('description', 'Hydra managed experiment')
         experiment_tags = experiment_info.get('tags', [])
         
-        # 🔧 동적 실행 이름 생성 - 실험 + 모델 + 설정 정보
+        # ✅ FIXED: Get augmentation from correct location
         model_name = self.config.get('model', {}).get('name', 'unknown')
         batch_size = self.config.get('train', {}).get('batch_size', 32)
         image_size = self.config.get('data', {}).get('image_size', 224)
-        augmentation_strategy = self.config.get('data', {}).get('augmentation', {}).get('strategy', 'basic')
+        
+        # ✅ FIXED: Get augmentation config from top level, not nested in data
+        augmentation_config = self.config.get('augmentation', {})
+        augmentation_enabled = augmentation_config.get('enabled', False)
+        
+        # ✅ FIXED: Only use strategy if augmentation is enabled
+        if augmentation_enabled:
+            augmentation_strategy = augmentation_config.get('strategy', 'basic')
+            augmentation_intensity = augmentation_config.get('intensity', 0.7)
+        else:
+            augmentation_strategy = 'none'
+            augmentation_intensity = 0.0
         
         # 성능 점수 플레이스홀더가 포함된 실행 이름
         run_name = f"{wandb_username}--{experiment_name}-{model_name}-{augmentation_strategy}-b{batch_size}-s{image_size}-(f1_pending)"
@@ -85,12 +96,13 @@ class WandBTrainer:
         # 🔧 Config 평면화 - WandB용 설정 준비
         flat_config = self._flatten_config(self.config)
         
-        # 🔧 증강 정보 추가 로깅
-        augmentation_config = self.config.get('data', {}).get('augmentation', {})
+        # ✅ FIXED: Use actual config values, not defaults
         flat_config.update({
-            'augmentation_strategy': augmentation_config.get('strategy', 'basic'),
-            'augmentation_intensity': augmentation_config.get('intensity', 0.5),
-            'augmentation_enabled': augmentation_config.get('enabled', False),
+            'augmentation_strategy': augmentation_strategy,
+            'augmentation_intensity': augmentation_intensity,
+            'augmentation_enabled': augmentation_enabled,
+            'experiment_name': experiment_name,  # Add this for tracking
+            'experiment_description': experiment_description,
         })
         
         # WandB 모드 확인
@@ -112,12 +124,12 @@ class WandBTrainer:
         # 모델 감시 설정
         if wandb_config.get('watch_model', True):
             wandb.watch(self.model, log='all', log_freq=wandb_config.get('log_frequency', 10))
-       
+    
         print(f"🚀 WandB initialized: {run_name}")
         print(f"📊 Mode: {wandb_mode}, Project: {wandb_config['project']}")
         print(f"🎯 Experiment: {experiment_name}")
-        print(f"🎨 Augmentation: {augmentation_strategy} (intensity: {augmentation_config.get('intensity', 0.5)})")
-    
+        print(f"🎨 Augmentation: {augmentation_strategy} (intensity: {augmentation_intensity})") 
+
     def _flatten_config(self, config, parent_key='', sep='_'):
         """중첩된 config를 WandB용으로 평면화"""
         items = []
