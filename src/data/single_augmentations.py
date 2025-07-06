@@ -189,17 +189,15 @@ def get_quality_transform(height: int, width: int, mean: tuple, std: tuple):
             ),
             # Gaussian noise
             A.GaussNoise(
-                var_limit=(10.0, 50.0),  # Noise variance range
-                mean=0,                   # Noise mean
+                std_range=(0.04, 0.2),  # 🔧 Changed from var_limit to std_range, normalized to [0,1]
                 p=1.0
             ),
         ], p=0.6),  # 60% chance to apply one of these
         
         # Compression artifacts
         A.ImageCompression(
-            quality_lower=60,    # Lower bound of compression quality
-            quality_upper=100,   # Upper bound of compression quality
-            p=0.4                # 40% chance to apply
+            quality_range=(60, 100),  # 🔧 Changed from quality_lower/quality_upper to quality_range
+            p=0.4                     # 40% chance to apply
         ),
         
         A.Normalize(mean=mean, std=std),

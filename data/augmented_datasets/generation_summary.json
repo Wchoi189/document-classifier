@@ -1,0 +1,18 @@
+{
+  "v1_volume_20x": {
+    "status": "success",
+    "path": "data/augmented_datasets/v1_volume_20x",
+    "strategy": "volume_focused",
+    "multiplier": 20
+  },
+  "v2_test_focused_10x": {
+    "status": "failed",
+    "error": "1 validation error for InitSchema\ngamma_limit\n  Value error, All values in (0.6, 1.4) must be >= 1 [type=value_error, input_value=(0.6, 1.4), input_type=tuple]\n    For further information visit https://errors.pydantic.dev/2.11/v/value_error"
+  },
+  "v3_balanced_15x": {
+    "status": "success",
+    "path": "data/augmented_datasets/v3_balanced_15x",
+    "strategy": "balanced",
+    "multiplier": 15
+  }
+}
