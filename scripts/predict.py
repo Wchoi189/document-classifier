@@ -62,17 +62,27 @@ class PredictionCLI:
         save_predictions(results, config=config)
         print("✨ Prediction finished successfully.")
 
-    def on_test_set(self, checkpoint_path: str, config_path: str = "configs/config.yaml", wandb: bool = False):
+    def on_test_set(self, checkpoint_path: str, config_path: str = "configs/config.yaml", output: Optional[str] = None, wandb: bool = False):
         """Runs prediction on the official test set defined in the config."""
         print("🧪 Running prediction on the official test set...")
         config = load_config(config_path)
-        test_set_path = config.get('paths', {}).get('test_data_dir', 'data/raw/test')
+        test_set_path = config.get('paths', {}).get('test_data_dir''data/raw/test')
         self.run(
             input_path=test_set_path,
             checkpoint_path=checkpoint_path,
             config_path=config_path,
             wandb=wandb
         )
+        
+        # If output is specified, rename the saved predictions file
+        if output:
+            import shutil
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            predictions_dir = Path(config.get('paths', {}).get('predictions_dir', 'predictions'))
+            latest_file = f"{predictions_dir}/predictions_{timestamp}.csv"
+            shutil.copy(latest_file, output)
+            print(f"✅ Predictions saved to {output}")
 
     def batch(self, checkpoint_path: str, input_list_file: str, config_path: str = "configs/config.yaml"):
         """Runs predictions on a list of inputs from a text file."""

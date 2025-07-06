@@ -70,3 +70,30 @@ python scripts/train.py experiment=resnet_robust
 # - ✅ Model artifacts (if enabled)
 # - ✅ Sample prediction images
 # - ✅ Confusion matrices
+
+
+
+# ✅ **Make Predictions**
+
+```bash
+# Test with last model
+python scripts/predict.py run --input_path data/raw/test --use-last
+
+# Test with specific checkpoint  
+python scripts/predict.py run --input_path data/raw/test --checkpoint_path outputs/models/model_epoch_20.pth
+```
+
+
+## 📊 **Expected Output**
+```
+✅ Project initialized
+🚀 Starting prediction...
+✅ Loaded 17 classes from meta.csv
+Creating model with 17 classes
+✅ Model loaded successfully from outputs/models/last_model.pth
+Found [X] images to process
+Predicting: 100%|████████████| [X]/[X]
+💾 Detailed predictions saved to: outputs/predictions/predictions_HHMM.csv
+📄 Submission file ready: outputs/predictions/submission_HHMM.csv
+```
+

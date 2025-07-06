@@ -47,7 +47,16 @@ def auto_increment_run_suffix(name: str, pad=3):
     next_suffix = str(int(suffix) + 1).zfill(pad)
     return name.replace(suffix, next_suffix)
 
-
+def convert_numpy_types(obj):
+    """Recursively convert numpy types in a structure to native Python types. It is useful before serializing to JSON."""
+    if isinstance(obj, dict):
+        return {k: convert_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(v) for v in obj]
+    elif isinstance(obj, np.generic):
+        return obj.item()
+    else:
+        return obj
 
 
 class EarlyStopping:
@@ -87,3 +96,4 @@ class EarlyStopping:
             self.trace_func(f'{self.metric} ({self.val_metric_best:.6f} --> {val_metric:.6f}). Saving model ...')
         torch.save(model.state_dict(), self.path)
         self.val_metric_best = val_metric
+    

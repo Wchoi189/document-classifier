@@ -20,7 +20,7 @@ def save_predictions(results: list, config: dict):
 
     Args:
         results (list): A list of prediction result dictionaries.
-        output_dir (str): The directory to save the files.
+        config (dict): Configuration dictionary with paths section
     """
     if not results:
         print("⚠️ No results to save.")
@@ -55,7 +55,16 @@ def predict_from_checkpoint(checkpoint_path, input_path, config, device, wandb_p
     """
     Predicts classes for images using a trained model checkpoint.
     Enhanced with optional WandB logging.
+    
+    FIXED: Now uses config utilities for proper structure handling
     """
+    
+    # 🔧 FIX: Import and apply config utilities
+    from src.utils.config_utils import normalize_config_structure, convert_config_types
+    
+    # 🔧 FIX: Ensure config is properly normalized
+    config = normalize_config_structure(config)
+    config = convert_config_types(config)
     
     # Initialize WandB if project specified
     if wandb_project:
@@ -79,9 +88,12 @@ def predict_from_checkpoint(checkpoint_path, input_path, config, device, wandb_p
             }
         )
 
-
+    # 🔧 FIX: Safe access to model configuration
+    model_config = config.get('model', {})
+    data_config = config.get('data', {})
+    
     # FIX: Get class information from meta.csv instead of dataset
-    meta_file = config['data']['meta_file']
+    meta_file = data_config.get('meta_file', 'data/raw/metadata/meta.csv')
     if os.path.exists(meta_file):
         meta_df = pd.read_csv(meta_file)
         num_classes = len(meta_df)
@@ -96,30 +108,39 @@ def predict_from_checkpoint(checkpoint_path, input_path, config, device, wandb_p
     
     print(f"Creating model with {num_classes} classes")
     
+    # 🔧 FIX: Safe model creation with fallback defaults
+    model_name = model_config.get('name', 'resnet50')  # Default fallback
+    pretrained = model_config.get('pretrained', True)   # Default fallback
+    
     # Create model with correct number of classes
     model = create_model(
-        model_name=config['model']['name'],
+        model_name=model_name,
         num_classes=num_classes,  # This should be 17, not 2
-        pretrained=False
+        pretrained=False  # Don't load pretrained for inference
     ).to(device)
     
     # Load checkpoint
     try:
         checkpoint_data = torch.load(str(checkpoint_path), map_location=device)
         model.load_state_dict(checkpoint_data)
-        print(f"✅ Model loaded successfully")
+        print(f"✅ Model loaded successfully from {checkpoint_path}")
     except Exception as e:
         print(f"❌ Error loading checkpoint: {e}")
         raise e
     
     model.eval()
     
+    # 🔧 FIX: Safe access to data configuration with defaults
+    image_size = data_config.get('image_size', 224)
+    mean = data_config.get('mean', [0.485, 0.456, 0.406])
+    std = data_config.get('std', [0.229, 0.224, 0.225])
+    
     # Setup transforms
     transforms = get_valid_transforms(
-        height=config['data']['image_size'], 
-        width=config['data']['image_size'],
-        mean=config['data']['mean'], 
-        std=config['data']['std']
+        height=image_size, 
+        width=image_size,
+        mean=mean, 
+        std=std
     )
     
     # Get image files
@@ -168,9 +189,9 @@ def predict_from_checkpoint(checkpoint_path, input_path, config, device, wandb_p
                 if wandb_project and i < 10:
                     # Denormalize image for display
                     img_display = transformed_image[0].cpu().numpy().transpose(1, 2, 0)
-                    mean = np.array(config['data']['mean'])
-                    std = np.array(config['data']['std'])
-                    img_display = img_display * std + mean
+                    mean_np = np.array(mean)
+                    std_np = np.array(std)
+                    img_display = img_display * std_np + mean_np
                     img_display = np.clip(img_display, 0, 1)
                     
                     caption = f"Pred: {result['predicted_class']}\nConf: {result['confidence']:.3f}"
@@ -186,7 +207,6 @@ def predict_from_checkpoint(checkpoint_path, input_path, config, device, wandb_p
         
         # Log prediction statistics
         class_distribution = df_results['predicted_class'].value_counts()
-        confidence_stats = df_results['confidence'].describe()
         
         wandb.log({
             "prediction_count": len(results),
