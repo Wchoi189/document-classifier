@@ -65,7 +65,7 @@ class WandBTrainer:
     def _init_wandb(self):
         """🔧 ENHANCED: WandB 초기화 - Hydra 실험 정보 포함"""
         wandb_config = self.config['wandb']
-        wandb_username = self.config['username']
+        wandb_username = self.config.get('wandb', {}).get('username', 'default-user')
         # 🔧 실험 정보를 config에서 가져오기
 
         experiment_info = self.config.get('experiment', {})

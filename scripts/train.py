@@ -22,7 +22,7 @@ from src.data.augmentation import get_configurable_transforms, get_train_transfo
 
 
 from src.utils.config_utils import print_config_summary,normalize_config_structure
-from src.utils.utils import set_seed,load_config
+from src.utils.utils import set_seed, load_config
 from src.data.csv_dataset import CSVDocumentDataset
 from src.models.model import create_model
 from src.trainer.trainer import Trainer

@@ -3,11 +3,11 @@ import torch
 import random
 import numpy as np
 import os
-from src.utils.config_utils import load_config_legacy, normalize_config_structure
+from src.utils.config_utils import load_config as load_config_new, normalize_config_structure
 
 def load_config(config_path):
     """YAML 설정 파일을 로드합니다. (Now supports both legacy and Hydra)"""
-    config = load_config_legacy(config_path)
+    config = load_config_new(config_path)  # Use the new function from config_utils
     return normalize_config_structure(config)
 
 def set_seed(seed):

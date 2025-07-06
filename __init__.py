@@ -19,7 +19,7 @@ os.chdir(PROJECT_ROOT)
 
 # Export for other modules to use
 __version__ = "1.0.0"
-__author__ = "Your Name"
+__author__ = "Woong Choi"
 
 print(f"✅ Document Classifier project initialized")
 print(f"📁 Project root: {PROJECT_ROOT}")

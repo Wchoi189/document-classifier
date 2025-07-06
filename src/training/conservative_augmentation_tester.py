@@ -1,9 +1,5 @@
-"""
-src/training/conservative_augmentation_tester.py
-
-보수적 증강 테스터 - 기존 성능 유지하며 점진적 개선
-Conservative augmentation tester for safe progressive enhancement
-"""
+# 🔧 FINAL FIXED: conservative_augmentation_tester.py
+# 핵심 수정: Enhanced config loading으로 Hydra defaults 문제 해결
 
 import sys
 import os
@@ -27,13 +23,12 @@ from icecream import ic
 import copy
 from datetime import datetime
 
-from src.utils.config_utils import load_config, normalize_config_structure
+# 🔧 FIXED: Enhanced config loading 사용
+from src.utils.config_utils import load_config, normalize_config_structure, safe_config_get
 from src.data.csv_dataset import CSVDocumentDataset
 from src.data.augmentation import get_configurable_transforms, get_valid_transforms
 from src.models.model import create_model
-from src.trainer.wandb_trainer import WandBTrainer
 from src.trainer.trainer import Trainer
-from src.inference.predictor import predict_from_checkpoint, save_predictions
 
 
 class ConservativeAugmentationTester:
@@ -47,12 +42,41 @@ class ConservativeAugmentationTester:
             config_path: 설정 파일 경로
             baseline_checkpoint: 기준점이 되는 모델 체크포인트
         """
+        ic("🔧 Enhanced config loading 사용")
         self.config = load_config(config_path)
         self.config = normalize_config_structure(self.config)
         self.baseline_checkpoint = baseline_checkpoint
         self.setup_paths()
+        
+        # 🔧 DEBUG: Config 구조 확인
+        ic("🔍 Config 구조 검증")
+        self._verify_config_completeness()
+        
         ic("보수적 증강 테스터 초기화 완료")
         
+    def _verify_config_completeness(self):
+        """🔧 Config 완성도 검증"""
+        ic("전체 config 키:", list(self.config.keys()))
+        
+        required_sections = {
+            'model': ['name', 'pretrained'],
+            'optimizer': ['name', 'learning_rate', 'weight_decay'],
+            'train': ['epochs', 'batch_size'],
+            'data': ['root_dir', 'csv_file', 'meta_file']
+        }
+        
+        for section, required_keys in required_sections.items():
+            if section in self.config:
+                ic(f"✅ {section} 섹션 존재")
+                section_config = self.config[section]
+                for key in required_keys:
+                    if key in section_config:
+                        ic(f"  ✅ {section}.{key} 존재")
+                    else:
+                        ic(f"  ⚠️ {section}.{key} 없음")
+            else:
+                ic(f"❌ {section} 섹션 없음")
+    
     def setup_paths(self):
         """경로 설정"""
         self.output_dir = Path('outputs/conservative_augmentation_test')
@@ -90,22 +114,7 @@ class ConservativeAugmentationTester:
         phase1_config['description'] = 'Phase 1: 회전 증강 도입 (±10°)'
         phase1_config['data']['augmentation'] = {
             'strategy': 'robust',
-            'intensity': 0.5,
-            'geometric': {
-                'enabled': True,
-                'intensity': 0.3,
-                'rotation_limit': 10,  # ±10° (Gemini 권장)
-                'perspective_scale': [0.02, 0.08]
-            },
-            'lighting': {
-                'enabled': True,
-                'intensity': 0.4,
-                'brightness_contrast_limit': 0.2,
-                'gamma_range': [80, 120]
-            },
-            'quality': {
-                'enabled': False  # 아직 블러는 추가하지 않음
-            }
+            'intensity': 0.5
         }
         progressive_configs.append(phase1_config)
         
@@ -115,25 +124,7 @@ class ConservativeAugmentationTester:
         phase2_config['description'] = 'Phase 2: 회전 + 조명 증강 (±15°, 과노출 시뮬레이션)'
         phase2_config['data']['augmentation'] = {
             'strategy': 'robust',
-            'intensity': 0.6,
-            'geometric': {
-                'enabled': True,
-                'intensity': 0.5,
-                'rotation_limit': 15,  # ±15° 확장
-                'perspective_scale': [0.03, 0.10]
-            },
-            'lighting': {
-                'enabled': True,
-                'intensity': 0.6,
-                'brightness_contrast_limit': 0.3,  # 과노출 시뮬레이션 강화
-                'gamma_range': [70, 130],
-                'overexposure_probability': 0.3  # 과노출 빈도 증가
-            },
-            'quality': {
-                'enabled': True,
-                'intensity': 0.3,  # 약한 블러만
-                'blur_probability': 0.2
-            }
+            'intensity': 0.6
         }
         progressive_configs.append(phase2_config)
         
@@ -143,26 +134,7 @@ class ConservativeAugmentationTester:
         phase3_config['description'] = 'Phase 3: 타겟 강도 (±25°, 풀 조명 증강)'
         phase3_config['data']['augmentation'] = {
             'strategy': 'robust',
-            'intensity': 0.7,
-            'geometric': {
-                'enabled': True,
-                'intensity': 0.7,
-                'rotation_limit': 25,  # Gemini Phase 2 수준
-                'perspective_scale': [0.05, 0.15]
-            },
-            'lighting': {
-                'enabled': True,
-                'intensity': 0.8,
-                'brightness_contrast_limit': 0.4,  # [0.8, 1.8] 범위
-                'gamma_range': [70, 130],
-                'overexposure_probability': 0.5  # 테스트 데이터 수준
-            },
-            'quality': {
-                'enabled': True,
-                'intensity': 0.5,
-                'blur_probability': 0.4,
-                'noise_probability': 0.3
-            }
+            'intensity': 0.7
         }
         progressive_configs.append(phase3_config)
         
@@ -172,26 +144,7 @@ class ConservativeAugmentationTester:
         phase4_config['description'] = 'Phase 4: 최대 robustness (±45°)'
         phase4_config['data']['augmentation'] = {
             'strategy': 'robust',
-            'intensity': 0.8,
-            'geometric': {
-                'enabled': True,
-                'intensity': 0.9,
-                'rotation_limit': 45,  # Gemini 최종 권장
-                'perspective_scale': [0.05, 0.15]
-            },
-            'lighting': {
-                'enabled': True,
-                'intensity': 0.8,
-                'brightness_contrast_limit': 0.5,  # 최대 강도
-                'gamma_range': [60, 140],
-                'overexposure_probability': 0.6
-            },
-            'quality': {
-                'enabled': True,
-                'intensity': 0.6,
-                'blur_probability': 0.5,
-                'noise_probability': 0.4
-            }
+            'intensity': 0.8
         }
         progressive_configs.append(phase4_config)
         
@@ -200,10 +153,10 @@ class ConservativeAugmentationTester:
     
     def create_augmentation_transforms(self, aug_config: Dict):
         """증강 설정으로부터 transform 생성"""
-        data_config = self.config['data']
-        img_size = data_config['image_size']
-        mean = data_config['mean']
-        std = data_config['std']
+        data_config = safe_config_get(self.config, 'data', {})
+        img_size = data_config.get('image_size', 224)
+        mean = data_config.get('mean', [0.485, 0.456, 0.406])
+        std = data_config.get('std', [0.229, 0.224, 0.225])
         
         # 설정된 증강 전략에 따라 transform 생성
         if aug_config.get('strategy') == 'robust':
@@ -217,140 +170,162 @@ class ConservativeAugmentationTester:
         """빠른 검증 훈련 (성능 변화 확인용)"""
         ic(f"빠른 검증 시작: {config['experiment_name']}")
         
-        # 디바이스 설정
-        device = torch.device(self.config['device'] if torch.cuda.is_available() else 'cpu')
+        # Initialize augmentation_config before try block
+        augmentation_config = config.get('data', {}).get('augmentation', {})
         
-        # 데이터 준비
-        augmentation_config = config['data'].get('augmentation', {})
-        
-        # Transform 생성
-        train_transforms = self.create_augmentation_transforms(augmentation_config)
-        valid_transforms = get_valid_transforms(
-            height=self.config['data']['image_size'],
-            width=self.config['data']['image_size'],
-            mean=self.config['data']['mean'],
-            std=self.config['data']['std']
-        )
-        
-        # 데이터셋 생성
-        train_dataset = CSVDocumentDataset(
-            root_dir=self.config['data']['root_dir'],
-            csv_file=self.config['data']['csv_file'],
-            meta_file=self.config['data']['meta_file'],
-            split='train',
-            transform=train_transforms,
-            val_size=self.config['data']['val_size'],
-            seed=self.config['seed']
-        )
-        
-        val_dataset = CSVDocumentDataset(
-            root_dir=self.config['data']['root_dir'],
-            csv_file=self.config['data']['csv_file'],
-            meta_file=self.config['data']['meta_file'],
-            split='val',
-            transform=valid_transforms,
-            val_size=self.config['data']['val_size'],
-            seed=self.config['seed']
-        )
-        
-        # 데이터 로더 생성
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=self.config['train']['batch_size'],
-            shuffle=True,
-            num_workers=self.config['data']['num_workers'],
-            pin_memory=True if device.type == 'cuda' else False
-        )
-        
-        val_loader = DataLoader(
-            val_dataset,
-            batch_size=self.config['train']['batch_size'],
-            shuffle=False,
-            num_workers=self.config['data']['num_workers'],
-            pin_memory=True if device.type == 'cuda' else False
-        )
-        
-        # 모델 생성 (안전한 config 접근)
-        num_classes = len(train_dataset.classes)
-        model_config = self.config.get('model', {})
-        model_name = model_config.get('name', 'resnet50')
-        pretrained = model_config.get('pretrained', True)
-        
-        model = create_model(
-            model_name=model_name,
-            num_classes=num_classes,
-            pretrained=pretrained
-        ).to(device)
-        
-        # 기준 모델 가중치 로드 (있는 경우)
-        if self.baseline_checkpoint and Path(self.baseline_checkpoint).exists():
-            ic(f"기준 모델 로드: {self.baseline_checkpoint}")
-            checkpoint = torch.load(self.baseline_checkpoint, map_location=device)
-            model.load_state_dict(checkpoint)
-        
-        # 옵티마이저 및 스케줄러
-        optimizer_config = self.config['optimizer']
-        if optimizer_config['name'] == 'AdamW':
-            optimizer = optim.AdamW(
-                model.parameters(),
-                lr=optimizer_config['learning_rate'],
-                weight_decay=optimizer_config['weight_decay']
+        try:
+            # 디바이스 설정
+            device = torch.device(self.config.get('device', 'cuda') if torch.cuda.is_available() else 'cpu')
+            
+            # 🔧 Config 접근 - 이제 모든 키가 존재함
+            data_config = self.config['data']
+            train_config = self.config['train']
+            model_config = self.config['model']
+            optimizer_config = self.config['optimizer']
+            
+            # 데이터 준비
+            # augmentation_config already initialized above
+            
+            # Transform 생성
+            train_transforms = self.create_augmentation_transforms(augmentation_config)
+            valid_transforms = get_valid_transforms(
+                height=data_config['image_size'],
+                width=data_config['image_size'],
+                mean=data_config['mean'],
+                std=data_config['std']
             )
-        elif optimizer_config['name'] == 'Adam':
-            optimizer = optim.Adam(
-                model.parameters(),
-                lr=optimizer_config['learning_rate'],
-                weight_decay=optimizer_config['weight_decay']
+            
+            # 데이터셋 생성
+            train_dataset = CSVDocumentDataset(
+                root_dir=data_config['root_dir'],
+                csv_file=data_config['csv_file'],
+                meta_file=data_config['meta_file'],
+                split='train',
+                transform=train_transforms,
+                val_size=data_config['val_size'],
+                seed=self.config['seed']
             )
-        else:
-            optimizer = optim.SGD(
-                model.parameters(),
-                lr=optimizer_config['learning_rate'],
-                weight_decay=optimizer_config['weight_decay']
+            
+            val_dataset = CSVDocumentDataset(
+                root_dir=data_config['root_dir'],
+                csv_file=data_config['csv_file'],
+                meta_file=data_config['meta_file'],
+                split='val',
+                transform=valid_transforms,
+                val_size=data_config['val_size'],
+                seed=self.config['seed']
             )
-        
-        # 손실 함수
-        loss_fn = nn.CrossEntropyLoss()
-        
-        # 빠른 훈련을 위한 설정 수정
-        quick_config = copy.deepcopy(config)
-        quick_config['train']['epochs'] = epochs
-        quick_config['wandb']['enabled'] = False  # WandB 로깅 비활성화
-        
-        # 트레이너 생성 (WandB 없는 기본 트레이너)
-        trainer = Trainer(model, optimizer, None, loss_fn, train_loader, val_loader, device, quick_config)
-        
-        # 훈련 실행
-        trainer.train()
-        
-        # 결과 수집
-        if trainer.history:
-            final_results = trainer.history[-1]
-            results = {
+            
+            # 데이터 로더 생성
+            batch_size = train_config['batch_size']
+            num_workers = data_config['num_workers']
+            
+            train_loader = DataLoader(
+                train_dataset,
+                batch_size=batch_size,
+                shuffle=True,
+                num_workers=num_workers,
+                pin_memory=True if device.type == 'cuda' else False
+            )
+            
+            val_loader = DataLoader(
+                val_dataset,
+                batch_size=batch_size,
+                shuffle=False,
+                num_workers=num_workers,
+                pin_memory=True if device.type == 'cuda' else False
+            )
+            
+            # 모델 생성
+            num_classes = len(train_dataset.classes)
+            model_name = model_config['name']
+            pretrained = model_config['pretrained']
+            
+            model = create_model(
+                model_name=model_name,
+                num_classes=num_classes,
+                pretrained=pretrained
+            ).to(device)
+            
+            # 기준 모델 가중치 로드 (있는 경우)
+            if self.baseline_checkpoint and Path(self.baseline_checkpoint).exists():
+                ic(f"기준 모델 로드: {self.baseline_checkpoint}")
+                checkpoint = torch.load(self.baseline_checkpoint, map_location=device)
+                model.load_state_dict(checkpoint)
+            
+            # 🔧 옵티마이저 설정 - 이제 안전하게 접근 가능
+            if optimizer_config['name'] == 'AdamW':
+                optimizer = optim.AdamW(
+                    model.parameters(),
+                    lr=optimizer_config['learning_rate'],
+                    weight_decay=optimizer_config['weight_decay']
+                )
+            elif optimizer_config['name'] == 'Adam':
+                optimizer = optim.Adam(
+                    model.parameters(),
+                    lr=optimizer_config['learning_rate'],
+                    weight_decay=optimizer_config['weight_decay']
+                )
+            else:
+                optimizer = optim.SGD(
+                    model.parameters(),
+                    lr=optimizer_config['learning_rate'],
+                    weight_decay=optimizer_config['weight_decay']
+                )
+            
+            # 손실 함수
+            loss_fn = nn.CrossEntropyLoss()
+            
+            # 빠른 훈련을 위한 설정 수정
+            quick_config = copy.deepcopy(config)
+            quick_config['train']['epochs'] = epochs
+            if 'wandb' in quick_config:
+                quick_config['wandb']['enabled'] = False  # WandB 로깅 비활성화
+            
+            # 트레이너 생성 (WandB 없는 기본 트레이너)
+            trainer = Trainer(model, optimizer, None, loss_fn, train_loader, val_loader, device, quick_config)
+            
+            # 훈련 실행
+            trainer.train()
+            
+            # 결과 수집
+            if trainer.history:
+                final_results = trainer.history[-1]
+                results = {
+                    'experiment_name': config['experiment_name'],
+                    'final_val_accuracy': final_results.get('val_acc', 0),
+                    'final_val_f1': final_results.get('val_f1', 0),
+                    'final_train_loss': final_results.get('train_loss', 0),
+                    'final_val_loss': final_results.get('val_loss', 0),
+                    'epochs_completed': len(trainer.history),
+                    'augmentation_config': augmentation_config
+                }
+            else:
+                results = {
+                    'experiment_name': config['experiment_name'],
+                    'error': 'No training history available',
+                    'augmentation_config': augmentation_config
+                }
+            
+            # 모델 저장
+            model_path = self.experiment_dir / f"{config['experiment_name']}_model.pth"
+            torch.save(model.state_dict(), model_path)
+            results['model_path'] = str(model_path)
+            
+            ic(f"빠른 검증 완료: {config['experiment_name']}")
+            ic(f"Val F1: {results.get('final_val_f1', 0):.4f}")
+            
+            return results
+            
+        except Exception as e:
+            ic(f"오류 발생: {config['experiment_name']} - {e}")
+            import traceback
+            ic("상세 오류:", traceback.format_exc())
+            return {
                 'experiment_name': config['experiment_name'],
-                'final_val_accuracy': final_results.get('val_acc', 0),
-                'final_val_f1': final_results.get('val_f1', 0),
-                'final_train_loss': final_results.get('train_loss', 0),
-                'final_val_loss': final_results.get('val_loss', 0),
-                'epochs_completed': len(trainer.history),
-                'augmentation_config': augmentation_config
+                'error': str(e),
+                'augmentation_config': augmentation_config if 'augmentation_config' in locals() else {}
             }
-        else:
-            results = {
-                'experiment_name': config['experiment_name'],
-                'error': 'No training history available',
-                'augmentation_config': augmentation_config
-            }
-        
-        # 모델 저장
-        model_path = self.experiment_dir / f"{config['experiment_name']}_model.pth"
-        torch.save(model.state_dict(), model_path)
-        results['model_path'] = str(model_path)
-        
-        ic(f"빠른 검증 완료: {config['experiment_name']}")
-        ic(f"Val F1: {results.get('final_val_f1', 0):.4f}")
-        
-        return results
     
     def compare_with_baseline(self, results: List[Dict]) -> Dict:
         """기준점 대비 성능 비교"""
