@@ -24,7 +24,7 @@ import copy
 from datetime import datetime
 
 # 🔧 FIXED: Enhanced config loading 사용
-from src.utils.config_utils import load_config, normalize_config_structure, safe_config_get
+from src.utils.config_utils import load_config, normalize_config_structure, safe_config_get, load_config_legacy
 from src.data.csv_dataset import CSVDocumentDataset
 from src.data.augmentation import get_configurable_transforms, get_valid_transforms
 from src.models.model import create_model

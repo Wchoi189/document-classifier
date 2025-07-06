@@ -1,0 +1,12 @@
+# configs/hydra/hydra_logging/disabled.yaml
+# Disable Hydra's default logging to avoid conflicts with our custom logging
+version: 1
+formatters:
+  simple:
+    format: ''
+handlers:
+  null:
+    class: logging.NullHandler
+root:
+  handlers: [null]
+disable_existing_loggers: false
