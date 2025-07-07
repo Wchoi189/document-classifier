@@ -12,7 +12,7 @@ device: 'cuda'
 # Phase 2 dataset
 data:
   root_dir: "data/augmented_datasets/phase2_variety_60deg"
-  csv_file: "data/augmented_datasets/phase2_variety_60deg/metadata/train.csv"
+  csv_file: "data/augmented_datasets/straitifed-k-fold-bk/combined_validation_set.csv"
   meta_file: "data/augmented_datasets/phase2_variety_60deg/metadata/meta.csv"
   image_size: 224
   val_size: 0.2

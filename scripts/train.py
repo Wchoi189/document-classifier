@@ -31,6 +31,7 @@ from src.trainer.trainer import Trainer
 from src.trainer.wandb_trainer import WandBTrainer
 import pandas as pd
 from src.inference.predictor import predict_from_checkpoint
+from src.data.csv_dataset import is_cross_phase_config, create_cross_phase_datasets
 
 config_path=str(project_root / "configs" / "experiment")
 @hydra.main(version_base="1.2", config_path=config_path)
@@ -106,11 +107,10 @@ def main(cfg: DictConfig) -> None:
     # --- 2. Data Preparation ---
     # Handle augmentation choice with new configuration system
     
-    # augmentation_config = config['data'].get('augmentation', {})
+    # Handle augmentation choice with new configuration system
     augmentation_config = config['augmentation']
     augmentation_enabled = augmentation_config['enabled']
     augmentation_strategy = augmentation_config['strategy']
-    # augmentation_strategy = augmentation_config.get('strategy', 'basic')
 
     print(f"🎨 Using augmentation strategy: {augmentation_strategy}")
     print(f"📊 Augmentation intensity: {augmentation_config.get('intensity', 0.7)}")
@@ -132,7 +132,7 @@ def main(cfg: DictConfig) -> None:
             std=config['data']['std']
         )
         print("✅ Using basic/no augmentation")       
-    
+
     valid_transforms = get_valid_transforms(
         height=config['data']['image_size'], 
         width=config['data']['image_size'],
@@ -140,30 +140,62 @@ def main(cfg: DictConfig) -> None:
         std=config['data']['std']
     )
 
-    # Create datasets using safe_get for all config accesses
-    train_dataset = CSVDocumentDataset(
-        root_dir=config['data']['root_dir'],
-        csv_file=config['data']['csv_file'],
-        meta_file=config['data']['meta_file'],
-        split='train', 
-        transform=train_transforms,
-        val_size=config['data']['val_size'],
-        seed=config['seed']
-    )
+    # 🔧 ENHANCED: Detect and handle cross-phase validation
+    if is_cross_phase_config(config):
+        print("🔄 Cross-phase validation detected!")
+        print(f"📊 Training on: {config['data']['root_dir']}")
+        print(f"🎯 Validating on: {config['data'].get('val_root_dir', 'separate dataset')}")
+        
+        # Create cross-phase datasets
+        train_dataset, val_dataset = create_cross_phase_datasets(
+            config, train_transforms, valid_transforms
+        )
+        
+    else:
+        print("📊 Standard single-dataset validation")
+        
+        # Create standard datasets
+        train_dataset = CSVDocumentDataset(
+            root_dir=config['data']['root_dir'],
+            csv_file=config['data']['csv_file'],
+            meta_file=config['data']['meta_file'],
+            split='train', 
+            transform=train_transforms,
+            val_size=config['data']['val_size'],
+            seed=config['seed']
+        )
 
-    val_dataset = CSVDocumentDataset(
-        root_dir=config['data']['root_dir'], 
-        csv_file=config['data']['csv_file'],
-        meta_file=config['data']['meta_file'],
-        split='val', 
-        transform=valid_transforms,
-        val_size=config['data']['val_size'],
-        seed=config['seed']
-    )
+        val_dataset = CSVDocumentDataset(
+            root_dir=config['data']['root_dir'], 
+            csv_file=config['data']['csv_file'],
+            meta_file=config['data']['meta_file'],
+            split='val', 
+            transform=valid_transforms,
+            val_size=config['data']['val_size'],
+            seed=config['seed']
+        )
 
-    # Create data loaders
+
+    # 🔧 Dataset verification and info
+    print(f"\n📊 Dataset Information:")
+    print(f"Training samples: {len(train_dataset)}")
+    print(f"Validation samples: {len(val_dataset)}")
+    print(f"Number of classes: {len(train_dataset.classes)}")
+    print(f"Classes: {train_dataset.classes[:5]}..." if len(train_dataset.classes) > 5 else f"Classes: {train_dataset.classes}")
+
+    # Verify cross-phase validation is working
+    if hasattr(train_dataset, 'is_cross_phase') and train_dataset.is_cross_phase:
+        print("✅ Cross-phase validation 활성화됨")
+        train_info = train_dataset.get_info()
+        val_info = val_dataset.get_info()
+        print(f"   훈련 데이터: {train_info['dataset_size']}개 샘플")
+        print(f"   검증 데이터: {val_info['dataset_size']}개 샘플 (다른 단계)")
+    else:
+        print("📊 Standard validation 사용 중")
+
+    # Create data loaders (rest remains the same)
     num_workers = config['data']['num_workers'] if config['data']['num_workers'] > 0 else 0
-    
+
     train_loader = DataLoader(
         train_dataset, 
         batch_size=config['train']['batch_size'], 
@@ -183,6 +215,29 @@ def main(cfg: DictConfig) -> None:
         multiprocessing_context='spawn' if num_workers > 0 else None,
         persistent_workers=True if num_workers > 0 else False
     )
+
+    # Debug: Check sample batch for cross-phase validation
+    print("\n--- Enhanced Sample Batch Debug ---")
+    try:
+        sample_batch = next(iter(train_loader))
+        images, labels = sample_batch
+        print(f"✅ Training batch loaded successfully")
+        print(f"Image tensor shape: {images.shape}")
+        print(f"Labels range: [{labels.min()}, {labels.max()}]")
+        
+        # Test validation batch
+        val_sample_batch = next(iter(val_loader))
+        val_images, val_labels = val_sample_batch
+        print(f"✅ Validation batch loaded successfully")
+        print(f"Val image tensor shape: {val_images.shape}")
+        print(f"Val labels range: [{val_labels.min()}, {val_labels.max()}]")
+        
+        if hasattr(train_dataset, 'is_cross_phase') and train_dataset.is_cross_phase:
+            print("🔄 Cross-phase validation confirmed working!")
+        
+    except Exception as e:
+        print(f"❌ Error loading sample batch: {e}")
+        return
 
     # --- 3. Model, Loss, Optimizer, Scheduler ---
     num_classes = len(train_dataset.classes)
