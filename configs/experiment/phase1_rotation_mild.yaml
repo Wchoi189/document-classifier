@@ -1,91 +1,71 @@
-# ========================================
-# configs/experiment/document_classifier_0701.yaml
-# ========================================
 # @package _global_
-
-# 🔧 SIMPLIFIED: No complex overrides - just explicit values that take priority
 defaults:
   - _self_
 
-name: "phase1-rotation-mild"
-description: "Phase 1: Conservative rotation augmentation based on corruption analysis"
-tags: ["phase1", "rotation", "conservative", "augmentation"]
+name: "phase1-rotation-mild-fold0"
+description: "Phase 1: K-fold validation - Fold 0"
+tags: ["progressive", "phase1", "rotation", "kfold", "fold0"]
 
-# 🔧 EXPLICIT OVERRIDES - These will take priority
 seed: 42
 device: 'cuda'
 
-# 🔧 Data configuration - explicit override
+# Phase 1 dataset
 data:
-  root_dir: "data/raw"
-  csv_file: "data/raw/metadata/train.csv"
-  meta_file: "data/raw/metadata/meta.csv"
+  root_dir: "data/augmented_datasets/phase1_mild_fold_0"
+  csv_file: "data/augmented_datasets/phase1_mild_fold_0/metadata/train.csv"
+  meta_file: "data/augmented_datasets/phase1_mild_fold_0/metadata/meta.csv"
+  
+  # 🔧 NEW: Separate validation dataset  
+  val_csv_file: "data/augmented_datasets/phase1_mild_fold_0/metadata/val.csv"
+  val_root_dir: "data/augmented_datasets/phase1_mild_fold_0/val"
+  
   image_size: 224
-  val_size: 0.2
+  val_size: 0.0  # 🔧 Set to 0 - using separate val files
   num_workers: 0
   mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
-  use_document_augmentation: false
 
-# 🔧 Augmentation - FORCE DISABLE
-# Change augmentation settings
+# Rest of config remains the same...
 augmentation:
-  enabled: true          # ← Change from false
-  strategy: "robust"     # ← Change from "none" 
-  intensity: 0.5         # ← Add this line
+  enabled: false
+  strategy: "none"
+  intensity: 0.0
 
-# 🔧 Model configuration - explicit override
+
+
 model:
   name: "resnet50"
   pretrained: true
 
-# 🔧 Training configuration - FORCE YOUR SETTINGS
 train:
-  epochs: 20                    # 🔧 FORCE 20 epochs
-  batch_size: 16               # 🔧 FORCE 16 batch size  
-  mixed_precision: false       # 🔧 Disable for exact 0701 recreation
+  epochs: 15  # ~30% of total 50 epochs
+  batch_size: 16
+  mixed_precision: false
   
   early_stopping:
-    patience: 5
+    patience: 8
     metric: 'val_f1'
     mode: 'max'
 
-# 🔧 Optimizer - FORCE YOUR SETTINGS
 optimizer:
   name: 'AdamW'
-  learning_rate: 0.0001        # 🔧 FORCE 0.0001 (not 0.001)
+  learning_rate: 0.0001
   weight_decay: 0.0001
 
-# 🔧 Scheduler - DISABLE for exact 0701 recreation  
 scheduler:
-  name: null                   # 🔧 No scheduler like original 0701
+  name: null
 
-# 🔧 WandB configuration
 wandb:
-  enabled: true
-  project: "document-classifier"
-  entity: null
-  name: "phase1-rotation-mild-0701-base"
-  tags: ["phase1", "rotation", "conservative", "0701-base"]
-  notes: "Phase 1 rotation augmentation: intensity 0.5, robust strategy, based on 0701 baseline"
   username: wchoi189
-  
-  log_frequency: 10
-  log_images: true
-  log_model: false
-  log_gradients: false
-  log_confusion_matrix: true
-  watch_model: true
-  log_code: true
+  enabled: true
+  project: "document-classifier-progressive"
+  name: "phase1-kfold-rotation-20deg-fold0"
+  tags: ["progressive", "phase1", "kfold", "fold0"]
+  notes: "Phase 1: K-fold validation prevents overfitting"
 
-# 🔧 Paths - use defaults but ensure compatibility
 paths:
-  output_dir: "outputs"
-  model_dir: "outputs/models"
-  prediction_dir: "outputs/predictions"
+  output_dir: "outputs/progressive"
+  model_dir: "outputs/progressive/phase1"
 
 logging:
-  log_dir: "outputs/logs"
-  checkpoint_dir: "outputs/models"
-  log_interval: 10
-  memory_logging: true
+  checkpoint_dir: "outputs/progressive/phase1"

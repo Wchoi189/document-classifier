@@ -4,6 +4,7 @@ Training script with FIXED path handling and dynamic config support
 """
 import sys
 import os
+import icecream as ic
 from pathlib import Path
 
 # 🔧 FIX: Change directory BEFORE Hydra decorator
@@ -221,6 +222,22 @@ def main(cfg: DictConfig) -> None:
 
     print(f"✅ Model created: {config['model']['name']}")
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
+
+    # 🔧 NEW: Checkpoint loading support
+    if 'load_checkpoint' in config['train']:
+        checkpoint_path = config['train']['load_checkpoint']
+        if checkpoint_path and Path(checkpoint_path).exists():
+            print(f"📥 체크포인트 로드 중: {checkpoint_path}")
+            try:
+                checkpoint = torch.load(checkpoint_path, map_location=device)
+                model.load_state_dict(checkpoint)
+                print(f"✅ 체크포인트 로드 성공: {checkpoint_path}")
+            except Exception as e:
+                print(f"❌ 체크포인트 로드 실패: {e}")
+                print("⚠️ 사전훈련된 가중치로 계속 진행")
+        else:
+            print(f"⚠️ 체크포인트 파일 없음: {checkpoint_path}")
+            print("⚠️ 사전훈련된 가중치로 계속 진행")
 
     # Loss function
     loss_fn = nn.CrossEntropyLoss()

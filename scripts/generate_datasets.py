@@ -190,6 +190,35 @@ class DatasetGenerationCLI:
             class_name = self.multiplier.class_info[class_id]
             ic(f"  클래스 {class_id} ({class_name}): {count}개")
 
+    def generate_progressive(self, multiplier: int = 10):
+        """
+        Progressive rotation training용 3단계 데이터셋 생성
+        
+        Args:
+            multiplier: 각 단계별 증강 배수
+        
+        Example:
+            python scripts/generate_datasets.py generate_progressive --multiplier=10
+        """
+        ic(f"🎯 Progressive rotation datasets 생성 ({multiplier}x)")
+        
+        return self.multiplier.generate_progressive_datasets(multiplier)    
+    
+    def generate_kfold(self, k: int = 5, multiplier: int = 10, strategy: str = "phase1_mild"):
+        """
+        Stratified K-fold 데이터셋 생성
+        
+        Args:
+            k: 폴드 수
+            multiplier: 증강 배수  
+            strategy: 증강 전략
+        
+        Example:
+            python scripts/generate_datasets.py generate_kfold --k=5 --multiplier=5 --strategy=phase1_mild
+        """
+        ic(f"🎯 Stratified {k}-fold 데이터셋 생성")
+        
+        return self.multiplier.generate_stratified_kfold_datasets(k, multiplier, strategy)
 
 def main():
     """메인 실행 함수"""

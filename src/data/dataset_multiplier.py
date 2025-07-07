@@ -54,19 +54,130 @@ class DatasetMultiplier:
         ic(f"원본 샘플 수: {len(self.df)}")
         ic(f"클래스 수: {len(self.class_info)}")
         ic(f"클래스별 분포: {dict(self.class_distribution.head())}")
+
+    def generate_progressive_datasets(self, base_multiplier: int = 10):
+        """Progressive training용 3단계 데이터셋 생성"""
+        
+        progressive_configs = [
+            ("phase1_mild_20deg", "phase1_mild", base_multiplier),
+            ("phase2_variety_60deg", "phase2_variety", base_multiplier),
+            ("phase3_full_90deg", "phase3_full", base_multiplier)
+        ]
+        
+        results = {}
+        
+        for dataset_name, strategy, multiplier in progressive_configs:
+            ic(f"\n🎯 {dataset_name} 생성 시작")
+            try:
+                output_path = self.save_augmented_dataset(dataset_name, strategy, multiplier)
+                results[dataset_name] = {
+                    'status': 'success',
+                    'path': output_path,
+                    'strategy': strategy,
+                    'multiplier': multiplier
+                }
+                ic(f"✅ {dataset_name} 완료")
+            except Exception as e:
+                ic(f"❌ {dataset_name} 실패: {e}")
+                results[dataset_name] = {
+                    'status': 'failed',
+                    'error': str(e)
+                }
+        
+        return results   
         
     def create_augmentation_strategy(self, strategy_name: str, intensity: float = 0.7) -> A.Compose:
         """증강 전략 생성"""
-        
-        if strategy_name == "volume_focused":
+        if strategy_name == "phase1_mild":
+            # Phase 1: Mild Acclimation (±20°)
+            return A.Compose([
+                A.Rotate(
+                    limit=20, 
+                    border_mode=cv2.BORDER_CONSTANT, 
+                    fill=(255, 255, 255), 
+                    p=0.8
+                ),
+                A.RandomBrightnessContrast(
+                    brightness_limit=0.2, 
+                    contrast_limit=0.2, 
+                    p=0.6
+                ),
+                A.GaussNoise(
+                    std_range=(0.01, 0.05), 
+                    p=0.3
+                ),
+            ])
+            
+        elif strategy_name == "phase2_variety":
+            # Phase 2: Introduce Variety (±60° + discrete 90°)
+            return A.Compose([
+                A.OneOf([
+                    # Continuous rotations
+                    A.Rotate(
+                        limit=60, 
+                        border_mode=cv2.BORDER_CONSTANT, 
+                        fill=(255, 255, 255), 
+                        p=1.0
+                    ),
+                    # Discrete 90° rotations
+                    A.RandomRotate90(p=1.0),
+                ], p=0.9),
+                
+                A.RandomBrightnessContrast(
+                    brightness_limit=0.3, 
+                    contrast_limit=0.3, 
+                    p=0.7
+                ),
+                A.GaussNoise(
+                    std_range=(0.02, 0.08), 
+                    p=0.4
+                ),
+                A.Perspective(
+                    scale=(0.05, 0.1), 
+                    keep_size=True, 
+                    p=0.5
+                ),
+            ])
+            
+        elif strategy_name == "phase3_full":
+            # Phase 3: Full Robustness (±90°)
+            return A.Compose([
+                A.OneOf([
+                    # Full range continuous rotations
+                    A.Rotate(
+                        limit=90, 
+                        border_mode=cv2.BORDER_CONSTANT, 
+                        fill=(255, 255, 255), 
+                        p=1.0
+                    ),
+                    # Discrete 90° rotations
+                    A.RandomRotate90(p=1.0),
+                    # Horizontal/Vertical flips
+                    A.HorizontalFlip(p=1.0),
+                    A.VerticalFlip(p=1.0),
+                ], p=0.95),
+                
+                A.RandomBrightnessContrast(
+                    brightness_limit=0.4, 
+                    contrast_limit=0.3, 
+                    p=0.8
+                ),
+                A.GaussNoise(
+                    std_range=(0.02, 0.1), 
+                    p=0.5
+                ),
+                A.Perspective(
+                    scale=(0.05, 0.15), 
+                    keep_size=True, 
+                    p=0.6
+                ),
+            ])
+               
+        elif strategy_name == "volume_focused":
             # V1: 대용량 생성 - 다양한 변형
             return A.Compose([
             A.OneOf([
-                A.Rotate(
-                limit=15, 
-                border_mode=cv2.BORDER_CONSTANT, 
-                p=1.0
-                ),
+                
                 A.Rotate(
                 limit=30, 
                 border_mode=cv2.BORDER_CONSTANT, 
@@ -77,6 +188,17 @@ class DatasetMultiplier:
                 border_mode=cv2.BORDER_CONSTANT, 
                 p=1.0
                 ),
+                A.Rotate(
+                limit=60, 
+                border_mode=cv2.BORDER_CONSTANT, 
+                p=1.0
+                ),
+                A.Rotate(
+                limit=90, 
+                border_mode=cv2.BORDER_CONSTANT, 
+                p=1.0
+                ),
+
             ], p=0.8),
             
             A.OneOf([
@@ -139,9 +261,8 @@ class DatasetMultiplier:
                 contrast_limit=0.2,
                 p=1.0
             ),
-            # Moderate range
-            A.RandomGamma(
-                gamma_limit=(1.0, 1.5),
+               A.RandomGamma(
+                gamma_limit=(110, 150),  # ← Change from (1.0, 1.5) to (110, 150)
                 p=1.0
             ),
             ], p=0.8),
@@ -416,7 +537,198 @@ class DatasetMultiplier:
         
         ic(f"🎉 모든 변형 생성 완료. 요약: {summary_path}")
         return results
+    def generate_stratified_kfold_datasets(self, k: int = 5, multiplier: int = 10, 
+                                        strategy: str = "phase1_mild"):
+        """
+        Stratified K-fold 데이터셋 생성 - 소스 레벨에서 분할 후 증강
+        
+        Args:
+            k: 폴드 수
+            multiplier: 증강 배수
+            strategy: 증강 전략
+        """
+        ic(f"🎯 Stratified {k}-fold 데이터셋 생성 시작")
+        ic(f"전략: {strategy}, 배수: {multiplier}x")
+        
+        from sklearn.model_selection import StratifiedKFold
+        
+        # 클래스별로 소스 이미지 그룹화
+        source_groups = defaultdict(list)
+        for _, row in self.df.iterrows():
+            source_groups[row['target']].append(row['ID'])
+        
+        # 각 클래스에서 소스 이미지 기준으로 K-fold 분할
+        kfold_splits = []
+        
+        for fold_idx in range(k):
+            train_sources = []
+            val_sources = []
+            
+            for class_id, sources in source_groups.items():
+                # 클래스 내에서 K-fold 분할
+                fold_size = len(sources) // k
+                start_idx = fold_idx * fold_size
+                end_idx = start_idx + fold_size if fold_idx < k-1 else len(sources)
+                
+                # 현재 폴드를 validation으로
+                val_sources.extend(sources[start_idx:end_idx])
+                # 나머지를 training으로
+                train_sources.extend(sources[:start_idx] + sources[end_idx:])
+            
+            kfold_splits.append({
+                'fold': fold_idx,
+                'train_sources': train_sources,
+                'val_sources': val_sources
+            })
+        
+        ic(f"✅ {k}개 폴드 분할 완료")
+        
+        # 각 폴드별 데이터셋 생성
+        results = {}
+        
+        for split_info in kfold_splits:
+            fold_idx = split_info['fold']
+            dataset_name = f"{strategy}_fold_{fold_idx}"
+            
+            ic(f"\n📁 Fold {fold_idx} 데이터셋 생성 중...")
+            
+            try:
+                fold_path = self._generate_fold_dataset(
+                    split_info, 
+                    dataset_name, 
+                    strategy, 
+                    multiplier
+                )
+                
+                results[dataset_name] = {
+                    'status': 'success',
+                    'path': fold_path,
+                    'fold': fold_idx,
+                    'train_sources': len(split_info['train_sources']),
+                    'val_sources': len(split_info['val_sources'])
+                }
+                ic(f"✅ Fold {fold_idx} 완료: {fold_path}")
+                
+            except Exception as e:
+                ic(f"❌ Fold {fold_idx} 실패: {e}")
+                results[dataset_name] = {
+                    'status': 'failed',
+                    'error': str(e),
+                    'fold': fold_idx
+                }
+        
+        return results
 
+    def _generate_fold_dataset(self, split_info: Dict, dataset_name: str, 
+                            strategy: str, multiplier: int) -> str:
+        """단일 폴드 데이터셋 생성"""
+        
+        # 출력 디렉토리 설정
+        output_dir = self.output_base_dir / dataset_name
+        train_dir = output_dir / "train"
+        val_dir = output_dir / "val"
+        metadata_dir = output_dir / "metadata"
+        
+        for dir_path in [train_dir, val_dir, metadata_dir]:
+            dir_path.mkdir(parents=True, exist_ok=True)
+        
+        # 증강 전략 생성
+        transform = self.create_augmentation_strategy(strategy)
+        
+        # Train/Val CSV 데이터 준비
+        train_csv_data = []
+        val_csv_data = []
+        
+        # Training set 생성 (증강 적용)
+        ic(f"📊 Training set 생성 중 ({len(split_info['train_sources'])} 소스)")
+        for source_filename in tqdm(split_info['train_sources'], desc="Training 증강"):
+            # 원본 데이터에서 해당 소스 찾기
+            source_row = self.df[self.df['ID'] == source_filename].iloc[0]
+            source_path = self.source_dir / "train" / source_filename
+            
+            if not source_path.exists():
+                ic(f"⚠️ 소스 파일 없음: {source_path}")
+                continue
+            
+            # 증강 샘플 생성
+            base_filename = Path(source_filename).stem
+            class_id = source_row['target']
+            
+            augmented_samples = self.generate_augmented_samples(
+                str(source_path),
+                transform,
+                multiplier,
+                f"fold_train_class_{class_id}_{base_filename}"
+            )
+            
+            # 증강된 샘플들 저장
+            for aug_image, aug_filename in augmented_samples:
+                # 이미지 저장
+                output_path = train_dir / aug_filename
+                image_bgr = cv2.cvtColor(aug_image, cv2.COLOR_RGB2BGR)
+                cv2.imwrite(str(output_path), image_bgr)
+                
+                # CSV 데이터 추가
+                train_csv_data.append({
+                    'ID': aug_filename,
+                    'target': class_id
+                })
+        
+        # Validation set 생성 (원본만, 증강 없음)
+        ic(f"📊 Validation set 생성 중 ({len(split_info['val_sources'])} 소스)")
+        for source_filename in tqdm(split_info['val_sources'], desc="Validation 복사"):
+            source_row = self.df[self.df['ID'] == source_filename].iloc[0]
+            source_path = self.source_dir / "train" / source_filename
+            
+            if not source_path.exists():
+                continue
+            
+            # 원본 이미지 복사 (증강 없음)
+            val_filename = f"val_original_{source_filename}"
+            val_path = val_dir / val_filename
+            shutil.copy2(source_path, val_path)
+            
+            # CSV 데이터 추가
+            val_csv_data.append({
+                'ID': val_filename,
+                'target': source_row['target']
+            })
+        
+        # 메타데이터 저장
+        self._save_fold_metadata(train_csv_data, val_csv_data, metadata_dir, dataset_name)
+        
+        ic(f"✅ Fold 데이터셋 생성 완료: {output_dir}")
+        ic(f"   Training samples: {len(train_csv_data)}")
+        ic(f"   Validation samples: {len(val_csv_data)}")
+        
+        return str(output_dir)
+
+    def _save_fold_metadata(self, train_data: List[Dict], val_data: List[Dict], 
+                        metadata_dir: Path, dataset_name: str):
+        """K-fold 메타데이터 저장"""
+        
+        # Train/Val CSV 분리 저장
+        train_df = pd.DataFrame(train_data)
+        val_df = pd.DataFrame(val_data)
+        
+        train_df.to_csv(metadata_dir / "train.csv", index=False)
+        val_df.to_csv(metadata_dir / "val.csv", index=False)
+        
+        # 원본 meta.csv 복사
+        shutil.copy2(self.meta_file, metadata_dir / "meta.csv")
+        
+        # 폴드 정보 저장
+        fold_info = {
+            'dataset_name': dataset_name,
+            'generation_timestamp': datetime.now().isoformat(),
+            'train_samples': len(train_data),
+            'val_samples': len(val_data),
+            'data_leakage': 'prevented',
+            'split_method': 'source_level_stratified'
+        }
+        
+        with open(metadata_dir / "fold_info.json", 'w', encoding='utf-8') as f:
+            json.dump(fold_info, f, indent=2, ensure_ascii=False)
 
 def main():
     """Fire CLI 인터페이스"""
