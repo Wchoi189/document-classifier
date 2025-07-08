@@ -1,0 +1,75 @@
+# @package _global_
+defaults:
+  - _self_
+
+name: "phase2-rotation-variety"
+description: "Phase 2: Rotation variety (±60° + 90°) - Progressive training"
+tags: ["progressive", "phase2", "rotation", "variety","cross-phase-validation"]
+
+seed: 42
+device: 'cuda'
+
+# Phase 2 dataset
+data:
+  root_dir: "data/augmented_datasets/straitifed-k-fold-bk/phase2_variety_fold_0"
+  csv_file: "data/augmented_datasets/straitifed-k-fold-bk/phase2_variety_fold_0/metadata/train.csv"
+  meta_file: "data/augmented_datasets/straitifed-k-fold-bk/phase2_variety_fold_0/metadata/meta.csv"
+
+  # Validate on Phase 2 data (harder conditions)
+  val_root_dir: "data/augmented_datasets/straitifed-k-fold-bk/phase3_full_fold_0"
+  val_csv_file: "data/augmented_datasets/straitifed-k-fold-bk/phase3_full_fold_0/metadata/combined_validation_set.csv"
+
+
+  image_size: 224
+  val_size: 0.0
+  num_workers: 4
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+
+augmentation:
+  enabled: true
+  strategy: "basic"
+  # intensity: 0.0
+
+model:
+  name: "resnet50"
+  pretrained: false  # Will load from Phase 1
+
+train:
+  epochs: 24  # ~40% of total 50 epochs
+  batch_size: 32
+  mixed_precision: false
+  
+  # Phase transition settings
+  load_checkpoint: "outputs/progressive/phase1/best_model.pth"
+  
+  early_stopping:
+    patience: 3
+    metric: 'val_f1'
+    mode: 'max'
+
+optimizer:
+  name: 'AdamW'
+  learning_rate: 0.0001  # Reduced for fine-tuning
+  weight_decay: 0.0001
+
+scheduler:
+  name: 'CosineAnnealingWarmRestarts'
+  T_0: 10
+  T_mult: 2
+  eta_min: 0.00001
+
+wandb:
+  enabled: true
+  project: "document-classifier-progressive"
+  name: "phase2-variety-rotation-60deg"
+  tags: ["progressive", "phase2", "rotation-60deg"]
+  notes: "Phase 2: Variety training ±60° + discrete 90°"
+  username: wchoi189
+
+paths:
+  output_dir: "outputs/progressive"
+  model_dir: "outputs/progressive/phase2"
+
+logging:
+  checkpoint_dir: "outputs/progressive/phase2"

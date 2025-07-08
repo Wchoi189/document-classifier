@@ -73,6 +73,7 @@
 
 ## 📁 Essential File Locations
 - **Main config**: `configs/config.yaml`
+- **Experimental configs**: `configs/experiment/*.yaml`
 - **Training**: `scripts/train.py` 
 - **Prediction**: `scripts/predict.py`
 - **Models**: `outputs/models/best_model.pth`, `last_model.pth`
@@ -92,16 +93,17 @@ python scripts/predict.py run --input_path data/raw/test --use-last
 # Run corruption analysis
 python -m src.analysis.corruption_analyzer run_comprehensive_analysis
 
-# Debug conservative tester (after fix)
-python -m src.training.conservative_augmentation_tester run_conservative_augmentation_test --baseline_checkpoint outputs/models/model_epoch_20.pth
+# Debug conservative tester
+python -m src.training.conservative_augmentation_tester run_conservative_augmentation_test --baseline_checkpoint outputs/models/best_model.pth
+
+# Need updated usage guide on:
+- Analysis Tools
+- Data multiplier
 ```
 
-## 🔍 Debug Analysis: Conservative Tester
+## 🔍 Debug Analysis: 
 
-### Error Pattern
-```
-ic| f"오류 발생: {config['experiment_name']} - {e}": '오류 발생: phase_0_baseline - 'optimizer''
-```
+
 
 ### Root Cause Analysis
 The `create_progressive_augmentation_configs()` function generates config dictionaries but doesn't properly structure them for the optimizer creation logic. The error occurs because:

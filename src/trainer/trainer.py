@@ -127,7 +127,10 @@ class Trainer:
             print(f"Initial GPU Memory: {initial_mem['allocated']:.2f}GB allocated, "
                   f"{initial_mem['free']:.2f}GB free")
         
-        for epoch in range(1, self.config['train']['epochs'] + 1):
+        epochs = self.config['train']['epochs']
+        if isinstance(epochs, str):
+            raise ValueError(f"Expected integer for epochs but got string: '{epochs}'. Check your config file.")
+        for epoch in range(1, int(epochs) + 1):
             # Log memory at start of epoch
             epoch_start_mem = get_gpu_memory_info()
             

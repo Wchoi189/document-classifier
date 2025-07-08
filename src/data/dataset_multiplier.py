@@ -93,15 +93,10 @@ class DatasetMultiplier:
             return A.Compose([
                 A.Rotate(
                     limit=20, 
-                    border_mode=cv2.BORDER_CONSTANT, 
+                    border_mode=cv2.BORDER_CONSTANT,
                     fill=(255, 255, 255), 
                     p=0.8
                 ),
-                # A.RandomBrightnessContrast(
-                #     brightness_limit=0.2, 
-                #     contrast_limit=0.2, 
-                #     p=0.6
-                # ),
                 A.GaussNoise(
                     std_range=(0.01, 0.05), 
                     p=0.3
@@ -121,21 +116,11 @@ class DatasetMultiplier:
                     ),
                     # Discrete 90° rotations
                     A.RandomRotate90(p=1.0),
-                ], p=0.9),
-                
-                # A.RandomBrightnessContrast(
-                #     brightness_limit=0.3, 
-                #     contrast_limit=0.3, 
-                #     p=0.7
-                # ),
-                # A.GaussNoise(
-                #     std_range=(0.02, 0.08), 
-                #     p=0.4
-                # ),
+                ], p=0.9),               
                 A.Perspective(
-                    scale=(0.05, 0.1), 
+                    scale=(0.01, 0.04), 
                     keep_size=True, 
-                    p=0.5
+                    p=0.3
                 ),
             ])
             
@@ -155,95 +140,29 @@ class DatasetMultiplier:
                     # Horizontal/Vertical flips
                     A.HorizontalFlip(p=1.0),
                     A.VerticalFlip(p=1.0),
-                ], p=0.95),
-                
-                # A.RandomBrightnessContrast(
-                #     brightness_limit=0.4, 
-                #     contrast_limit=0.3, 
-                #     p=0.8
-                # ),
-                # A.GaussNoise(
-                #     std_range=(0.02, 0.1), 
-                #     p=0.5
-                # ),
+                ], p=0.95),                
                 A.Perspective(
-                    scale=(0.05, 0.15), 
+                    scale=(0.01, 0.04), 
                     keep_size=True, 
-                    p=0.6
+                    p=0.3
                 ),
             ])
                
         elif strategy_name == "volume_focused":
             # V1: 대용량 생성 - 다양한 변형
-            return A.Compose(
-                [
-            A.OneOf([
-                
-                A.Rotate(
-                limit=30, 
-                border_mode=cv2.BORDER_CONSTANT, 
-                p=1.0
+            return A.Compose([
+                A.OneOf([
+                    A.Rotate(limit=30, border_mode=cv2.BORDER_CONSTANT, fill=(255, 255, 255), p=1.0), # Added parameter
+                    A.Rotate(limit=45, border_mode=cv2.BORDER_CONSTANT, fill=(255, 255, 255), p=1.0), # Added parameter
+                    A.Rotate(limit=60, border_mode=cv2.BORDER_CONSTANT, fill=(255, 255, 255), p=1.0), # Added parameter
+                    A.Rotate(limit=90, border_mode=cv2.BORDER_CONSTANT, fill=(255, 255, 255), p=1.0), # Added parameter
+                ], p=0.8),
+                A.Perspective(
+                    scale=(0.01, 0.04),
+                    keep_size=True,
+                    fill=(255, 255, 255),  # Added parameter
+                    p=0.4
                 ),
-                A.Rotate(
-                limit=45, 
-                border_mode=cv2.BORDER_CONSTANT, 
-                p=1.0
-                ),
-                A.Rotate(
-                limit=60, 
-                border_mode=cv2.BORDER_CONSTANT, 
-                p=1.0
-                ),
-                A.Rotate(
-                limit=90, 
-                border_mode=cv2.BORDER_CONSTANT, 
-                p=1.0
-                ),
-
-            ], p=0.8),
-            
-            # A.OneOf([
-                # A.RandomBrightnessContrast(
-                # brightness_limit=0.2, 
-                # contrast_limit=0.2, 
-                # p=1.0
-                # ),
-                # A.RandomBrightnessContrast(
-                # brightness_limit=0.3, 
-                # contrast_limit=0.3, 
-                # p=1.0
-                # ),
-                # A.RandomGamma(
-                # gamma_limit=(80, 120), 
-                # p=1.0
-                # ),
-            # ], p=0.7),
-            
-            # A.OneOf(
-            #     [
-            #     A.GaussianBlur(
-            #     blur_limit=3, 
-            #     p=1.0
-            #     ),
-            #     A.MotionBlur(
-            #     blur_limit=5, 
-            #     p=1.0
-            #     ),
-            #     A.GaussNoise(
-            #         std_range=(0.02, 0.1),  # Changed from var_limit to std_range, normalized to [0,1]
-            #         p=0.6
-            #     ),
-            # ], p=0.5),
-            
-            A.Perspective(
-                scale=(0.05, 0.1), 
-                keep_size=True, 
-                p=0.4
-            ),
-            # A.ImageCompression(
-            #     quality_range=(70, 95),  # Changed from quality_lower/quality_upper to quality_range
-            #     p=0.3
-            # ),
             ])
             
         elif strategy_name == "test_focused":
@@ -256,24 +175,6 @@ class DatasetMultiplier:
             p=0.9
             ),
             
-            # 과노출 시뮬레이션 (46% vs 20% 차이)
-            # A.OneOf([
-            # A.RandomBrightnessContrast(
-            #     brightness_limit=0.4,
-            #     contrast_limit=0.2,
-            #     p=1.0
-            # ),
-            #    A.RandomGamma(
-            #     gamma_limit=(110, 150),  # ← Change from (1.0, 1.5) to (110, 150)
-            #     p=1.0
-            # ),
-            # ], p=0.8),
-            
-            # 가우시안 노이즈 (테스트셋 특성)
-            # A.GaussNoise(
-            # std_range=(0.02, 0.1),  # Changed from var_limit to std_range, normalized to [0,1]
-            # p=0.6
-            # ),
             
             # 원근 왜곡
             A.Perspective(
@@ -290,23 +191,8 @@ class DatasetMultiplier:
                 border_mode=cv2.BORDER_CONSTANT, 
                 p=0.7
             ),
-            # A.RandomBrightnessContrast(
-            #     brightness_limit=0.25, 
-            #     contrast_limit=0.25, 
-            #     p=0.6
-            # ),
-            # A.OneOf([
-            #     A.GaussianBlur(
-            #     blur_limit=(3,7), 
-            #     p=1.0
-            #     ),
-            #     A.GaussNoise(
-            #     std_range=(0.01, 0.05),  # Changed from var_limit to std_range, normalized to [0,1]
-            #     p=1.0
-            #     ),
-            # ], p=0.4),
             A.Perspective(
-                scale=(0.02, 0.08), 
+                scale=(0.01, 0.04), 
                 keep_size=True, 
                 p=0.3
             ),

@@ -51,7 +51,7 @@ def save_predictions(results: list, config: dict):
     submission_df.to_csv(submission_filename, index=False)
     print(f"📄 Submission file ready: {submission_filename}")
 
-def predict_from_checkpoint(checkpoint_path, input_path, config, device, wandb_project=None):
+def predict_from_checkpoint(checkpoint_path, input_path, config, device, wandb_project=None, model_name_override=None):
     """
     Predicts classes for images using a trained model checkpoint.
     Enhanced with optional WandB logging.
@@ -65,7 +65,14 @@ def predict_from_checkpoint(checkpoint_path, input_path, config, device, wandb_p
     # 🔧 FIX: Ensure config is properly normalized
     config = normalize_config_structure(config)
     config = convert_config_types(config)
-    
+
+     # Use the override if provided, otherwise use the config default
+    if model_name_override:
+        model_name = model_name_override
+        print(f"🔧 Model name overridden from command line. Using: {model_name}")
+    else:
+        model_name = config.get('name', 'resnet50')  # Default fallback   
+
     # Initialize WandB if project specified
     if wandb_project:
         # --- 1. Create a dynamic name for the prediction run ---

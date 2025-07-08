@@ -21,7 +21,7 @@ data:
 
 
   
-  image_size: 380
+  image_size: 224
   val_size: 0.0  # 🔧 Set to 0 - using separate val files
   num_workers: 4
   mean: [0.485, 0.456, 0.406]

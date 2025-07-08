@@ -11,14 +11,14 @@ def get_train_transforms(height, width, mean, std):
             A.Rotate(limit=15, border_mode=cv2.BORDER_CONSTANT, p=1.0),
         ], p=0.7),
         A.OneOf([
-            A.MotionBlur(p=1.0),
-            A.MedianBlur(blur_limit=3, p=1.0),
-            A.GaussianBlur(blur_limit=3, p=1.0),
+            # A.MotionBlur(p=1.0),
+            # A.MedianBlur(blur_limit=3, p=1.0),
+            # A.GaussianBlur(blur_limit=3, p=1.0),
         ], p=0.5),
         A.OneOf([
-            A.ISONoise(p=1.0),
+            # A.ISONoise(p=1.0),
             A.GaussNoise(p=1.0),
-            A.RandomBrightnessContrast(p=1.0),
+            # A.RandomBrightnessContrast(p=1.0),
         ], p=0.5),
         A.Normalize(mean=mean, std=std),
         ToTensorV2(),
@@ -37,28 +37,28 @@ def get_configurable_transforms(height, width, mean, std, config):
     transforms_list = [A.Resize(height=height, width=width)]
     
     strategy = config.get('strategy', 'basic')
-    intensity = config.get('intensity', 0.7)
+    intensity = config.get('intensity', 0.5)
     
     if strategy == 'robust':
         # Perspective distortion
         transforms_list.append(
-            A.Perspective(scale=(0.05, 0.15), keep_size=True, p=0.6 * intensity)
+            A.Perspective(scale=(0.01, 0.05), keep_size=True, p=0.3 * intensity)
         )
         
         # Lighting variations
-        transforms_list.append(
-            A.OneOf([
-                A.RandomBrightnessContrast(brightness_limit=0.3 * intensity, contrast_limit=0.3 * intensity, p=1.0),
-                A.RandomShadow(shadow_roi=(0, 0.5, 1, 1), shadow_dimension=5, p=1.0),
-                A.RandomGamma(gamma_limit=(70, 130), p=1.0),
-            ], p=0.7 * intensity)
-        )
+        # transforms_list.append(
+        #     A.OneOf([
+        #         A.RandomBrightnessContrast(brightness_limit=(-0.1, 0.4) * intensity, contrast_limit=0.3 * intensity, p=1.0),
+        #         # A.RandomShadow(shadow_roi=(0, 0.5, 1, 1), shadow_dimension=5, p=1.0),
+        #         # A.RandomGamma(gamma_limit=(70, 130), p=1.0),
+        #     ], p=0.7 * intensity)
+        # )
         
         # Quality degradation
         transforms_list.append(
             A.OneOf([
-                A.MotionBlur(blur_limit=7, p=1.0),
-                A.GaussianBlur(blur_limit=(3, 7), p=1.0),
+                # A.MotionBlur(blur_limit=7, p=1.0),
+                # A.GaussianBlur(blur_limit=(3, 7), p=1.0),
                 A.GaussNoise(p=1.0),
             ], p=0.5 * intensity)
         )

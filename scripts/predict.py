@@ -21,6 +21,7 @@ class PredictionCLI:
     def run(self,
             input_path: str,
             checkpoint_path: Optional[str] = None, # Make this optional
+            model_name: Optional[str] = None,
             use_last: bool = False,                 
             config_path: str = "configs/config.yaml", # default if not specified
             device: str = "cuda", # Default to CUDA if available
@@ -57,7 +58,8 @@ class PredictionCLI:
             input_path=input_path,
             config=config,
             device=torch_device,
-            wandb_project=wandb_project
+            wandb_project=wandb_project,
+            model_name_override=model_name
         )
         save_predictions(results, config=config)
         print("✨ Prediction finished successfully.")

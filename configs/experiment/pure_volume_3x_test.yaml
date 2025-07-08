@@ -15,8 +15,9 @@ data:
   root_dir: "data/augmented_datasets/pure_volume_3x_no_rotation"
   csv_file: "data/augmented_datasets/pure_volume_3x_no_rotation/metadata/train.csv"
   meta_file: "data/augmented_datasets/pure_volume_3x_no_rotation/metadata/meta.csv"
+  
+  val_root_dir: "data/augmented_datasets/pure_volume_3x_no_rotation"
   val_csv_file: "data/augmented_datasets/pure_volume_3x_no_rotation/metadata/val.csv"
-  val_root_dir: "data/augmented_datasets/pure_volume_3x_no_rotation/val"
   
   image_size: 224
   val_size: 0.0  # 별도 validation 파일 사용
@@ -50,13 +51,15 @@ optimizer:
   weight_decay: 0.0001
 
 scheduler:
-  name: 'CosineAnnealingLR'
-  T_max: 20
+  name: 'CosineAnnealingWarmRestarts'
+  T_0: 10
+  T_mult: 2
+  eta_min: 0.00001
 
 wandb:
   username: wchoi189
   enabled: true
-  project: "document-classifier-pure-volume"
+  project: "document-classifier"
   name: "pure-volume-3x-no-rotation-hypothesis-test"
   tags: ["pure-volume", "no-rotation", "3x", "hypothesis-test"]
   notes: "순수 볼륨 3배 증강 테스트 - 회전 없음으로 0.38 실패 원인 규명"
