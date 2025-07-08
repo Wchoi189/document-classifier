@@ -14,7 +14,6 @@ data:
   root_dir: "data/augmented_datasets/phase3_full_fold_0"
   csv_file: "data/augmented_datasets/phase3_full_fold_0/metadata/train.csv"
   meta_file: "data/augmented_datasets/phase3_full_fold_0/metadata/meta.csv"
-
   # Validate on Phase 2 data (harder conditions)
   # val_root_dir: "data/augmented_datasets/straitifed-k-fold-bk/phase3_full_fold_0"
   # val_csv_file: "data/augmented_datasets/straitifed-k-fold-bk/phase3_full_fold_0/metadata/combined_validation_set.csv"
