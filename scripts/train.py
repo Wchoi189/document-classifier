@@ -33,13 +33,13 @@ import pandas as pd
 from src.inference.predictor import predict_from_checkpoint
 from src.data.csv_dataset import is_cross_phase_config, create_cross_phase_datasets
 
-config_path=str(project_root / "configs" / "experiment")
-@hydra.main(version_base="1.2", config_path=config_path)
+# config_path=str(project_root / "configs")
+@hydra.main(version_base="1.2", config_path="../configs")
 def main(cfg: DictConfig) -> None:
   
     print(f"Current working directory: {os.getcwd()}")
     print(f"Script location: {__file__}")
-    # hydra.initialize(config_path=str(project_root / "configs" / "experiments"))
+
 
     """
     Main training function with Hydra configuration management.

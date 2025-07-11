@@ -30,7 +30,7 @@ dependencies:
   - tqdm>=4.62.0
   - PyYAML>=6.0
   - opencv               # Provides cv2, managed by conda
-
+  - hydra-core
   # === Pip Packages ===
   # Packages not available on Conda or that need specific pip versions.
   - pip

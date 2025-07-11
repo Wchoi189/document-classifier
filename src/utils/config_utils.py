@@ -589,3 +589,97 @@ def load_and_merge_hydra_defaults(config_path: Union[str, Path]) -> Dict[str, An
     
     ic(f"병합 완료, 최종 키들: {list(merged_config.keys())}")
     return merged_config
+
+def ensure_required_config_sections(config: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    필수 config 섹션들이 없는 경우 기본값으로 추가
+    """
+    ic("🔧 필수 config 섹션 확인 및 추가")
+    
+    # 🔧 FIXED: Add missing global settings
+    if 'seed' not in config:
+        ic("➕ seed 추가")
+        config['seed'] = 42
+    
+    if 'device' not in config:
+        ic("➕ device 추가")
+        config['device'] = 'cuda'
+    
+    # 🔧 FIXED: Ensure experiment section exists
+    if 'experiment' not in config:
+        ic("➕ experiment 섹션 추가")
+        config['experiment'] = {
+            'name': 'default_experiment',
+            'description': 'Default experiment configuration',
+            'tags': ['default']
+        }
+    
+    # 기본 model 설정
+    if 'model' not in config:
+        ic("➕ model 섹션 추가")
+        config['model'] = {
+            'name': 'resnet50',
+            'pretrained': True,
+            'dropout_rate': 0.5
+        }
+    
+    # 기본 optimizer 설정
+    if 'optimizer' not in config:
+        ic("➕ optimizer 섹션 추가")
+        config['optimizer'] = {
+            'name': 'AdamW',
+            'learning_rate': 0.001,
+            'weight_decay': 0.01
+        }
+    
+    # 기본 scheduler 설정
+    if 'scheduler' not in config:
+        ic("➕ scheduler 섹션 추가")
+        config['scheduler'] = {
+            'name': 'CosineAnnealingWarmRestarts',
+            'T_0': 10,
+            'T_mult': 2,
+            'eta_min': 0.00001
+        }
+    
+    # 🔧 FIXED: Ensure augmentation section exists
+    if 'augmentation' not in config:
+        ic("➕ augmentation 섹션 추가")
+        config['augmentation'] = {
+            'enabled': True,
+            'strategy': 'basic',
+            'intensity': 0.3
+        }
+    
+    # train 섹션 보완
+    if 'train' in config:
+        train_config = config['train']
+        if 'early_stopping' not in train_config:
+            ic("➕ early_stopping 섹션 추가")
+            train_config['early_stopping'] = {
+                'patience': 8,
+                'metric': 'val_f1',
+                'mode': 'max'
+            }
+    
+    # paths 섹션 보완
+    if 'paths' not in config:
+        ic("➕ paths 섹션 추가")
+        config['paths'] = {
+            'output_dir': 'outputs',
+            'prediction_dir': 'predictions',
+            'model_dir': 'models',
+            'batch_dir': 'batch',
+            'batch_summary_filename': 'batch_summary.csv'
+        }
+    
+    # logging 섹션 보완
+    if 'logging' not in config:
+        ic("➕ logging 섹션 추가")
+        config['logging'] = {
+            'checkpoint_dir': str(Path(config['paths']['output_dir']) / config['paths']['model_dir']),
+            'log_dir': str(Path(config['paths']['output_dir']) / 'logs')
+        }
+    
+    ic(f"보완 완료, 최종 키들: {list(config.keys())}")
+    return config

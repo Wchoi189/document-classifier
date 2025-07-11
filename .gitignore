@@ -79,7 +79,7 @@ wandb/sweep-*/
 !wandb/settings
 
 # documentation
-docs/*
+# docs/*
 
 # Data files
 data/*/*/*

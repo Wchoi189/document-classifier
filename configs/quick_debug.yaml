@@ -1,0 +1,88 @@
+# configs/quick_debug.yaml
+# Quick debug configuration - standalone file
+seed: 42
+device: 'cuda'
+
+# Add missing keys for compatibility
+augmentation:
+  enabled: true
+  strategy: "basic"
+  intensity: 0.3
+
+# Experiment info
+experiment:
+  name: "quick_debug"
+  description: "빠른 디버그 실행 - 3 에포크"
+  tags: ["debug", "quick-test", "3-epochs"]
+
+# Data configuration
+data:
+  root_dir: "data/raw"
+  csv_file: "data/raw/metadata/train.csv"
+  meta_file: "data/raw/metadata/meta.csv"
+  image_size: 224
+  val_size: 0.2
+  num_workers: 0
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+  use_document_augmentation: false
+
+# Quick training settings
+train:
+  epochs: 3
+  batch_size: 16
+  mixed_precision: false
+  early_stopping:
+    patience: 3
+    metric: 'val_f1'
+    mode: 'max'
+
+# Model configuration
+model:
+  name: "resnet50"
+  pretrained: true
+
+# Optimizer
+optimizer:
+  name: 'AdamW'
+  learning_rate: 0.001
+  weight_decay: 0.01
+
+# Scheduler
+scheduler:
+  name: 'CosineAnnealingWarmRestarts'
+  T_0: 5
+  T_mult: 2
+  eta_min: 0.00001
+
+# Basic augmentation
+augmentation:
+  enabled: true
+  strategy: "basic"
+  intensity: 0.3
+
+# WandB settings
+wandb:
+  enabled: true
+  project: "document-classifier"
+  name: "quick_debug"
+  tags: ["debug", "quick-test"]
+  log_frequency: 1
+  log_images: true
+  mode: "online"
+
+# Paths
+paths:
+  output_dir: "outputs"
+  model_dir: "outputs/models"
+  prediction_dir: "outputs/predictions"
+  batch_dir: "outputs/batch"
+  batch_summary_filename: "batch_summary.csv"
+
+logging:
+  log_dir: "outputs/logs"
+  checkpoint_dir: "outputs/models"
+  log_interval: 10
+  memory_logging: true
+  save_freq: 10
+  save_best_only: false
