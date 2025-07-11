@@ -2,11 +2,29 @@
 
 ## Team
 
-| ![이경도](https://avatars.githubusercontent.com/u/156163982?v=4) | ![이승민](https://avatars.githubusercontent.com/u/156163982?v=4) | ![최웅비](https://avatars.githubusercontent.com/u/156163982?v=4) | ![이상원](https://avatars.githubusercontent.com/u/156163982?v=4) | ![김재덕](https://avatars.githubusercontent.com/u/156163982?v=4) |
-| :--------------------------------------------------------------: | :--------------------------------------------------------------: | :--------------------------------------------------------------: | :--------------------------------------------------------------: | :--------------------------------------------------------------: |
-|            [이경도](https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/tree/james)             |            [이승민](https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/tree/lsw)             |            [최웅비](https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/tree/wb2x)             |            [이상원](https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/)             |            [김재덕](https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/)             |
-|                            팀장, 모델 아키텍처 설계                            |                            데이터 전처리 및 증강                            |                            분석 도구 개발                            |                            실험 관리 및 최적화                            |                            평가 및 시각화                            |
-
+<table>
+  <tr>
+    <td align="center"><img src="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/blob/james/docs/team/images/AI13_이경도.jpg?raw=true" width="180" height="180"/></td>
+    <td align="center"><img src="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/blob/lsw/docs/team/images/AI13_이승민.jpg?raw=true" width="180" height="180"/></td>
+    <td align="center"><img src="https://github.com/Wchoi189/document-classifier/blob/dev-hydra/docs/images/team/AI13_%EC%B5%9C%EC%9A%A9%EB%B9%84.png?raw=true" width="180" height="180"/></td>
+    <td align="center"><img src="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/blob/main/docs/team/images/AI13_이상원.jpg?raw=true" width="180" height="180"/></td>
+    <td align="center"><img src="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/blob/main/docs/team/images/AI13_김재덕.jpg?raw=true" width="180" height="180"/></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/tree/james">이경도</a></td>
+    <td align="center"><a href="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/tree/lsw">이승민</a></td>
+    <td align="center"><a href="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/tree/wb2x">최웅비</a></td>
+    <td align="center"><a href="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/">이상원</a></td>
+    <td align="center"><a href="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/">김재덕</a></td>
+  </tr>
+  <tr>
+    <td align="center">팀장, 모델 아키텍처 설계</td>
+    <td align="center">데이터 전처리 및 증강</td>
+    <td align="center">분석 도구 개발</td>
+    <td align="center">실험 관리 및 최적화</td>
+    <td align="center">평가 및 시각화</td>
+  </tr>
+</table>
 ## 0. Overview
 
 ### Environment
