@@ -1,0 +1,89 @@
+# @package _global_
+defaults:
+  - _self_
+
+name: "phase2-rotation-variety-double-data-2-7-3-class"
+description: "Phase 2: Rotation variety (±60° + 90°) - Progressive training"
+tags: ["progressive", "phase2", "rotation", "reduced lr and weight decay","cross-phase-validation","double data 2,7 class"]
+
+seed: 42
+device: 'cuda'
+
+# Phase 2 dataset
+data:
+  root_dir: "data/augmented_datasets/phase2_variety_fold_0"
+  csv_file: "data/augmented_datasets/phase2_variety_fold_0/metadata/train.csv"
+  meta_file: "data/augmented_datasets/phase2_variety_fold_0/metadata/meta.csv"
+
+  # Validate on Phase 3 data (harder conditions)
+  val_root_dir: "data/augmented_datasets/phase3_rotation_variety_0/val"
+  val_csv_file: "data/augmented_datasets/phase3_rotation_variety_0/val/metadata/combined_validation_set.csv"
+
+
+  image_size: 384
+  val_size: 0.0
+  num_workers: 4
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+
+
+
+# Emergency overfitting fix config
+train:
+  epochs: 15
+  batch_size: 24
+  early_stopping:
+    patience: 2
+    metric: 'val_loss'
+    mode: 'min'
+    min_delta: 0.001
+
+  # Phase transition settings
+  load_checkpoint: "outputs/convnextv2_phase0_data10x_384/outputs/models/convnextv2_phase0_data10x_384model_epoch_7.pth"
+  
+model:
+  name: "convnextv2_base.fcmae_ft_in22k_in1k_384"
+  pretrained: false
+  drop_path_rate: 0.4         # Heavy regularization
+  
+optimizer:
+  name: 'AdamW'
+  learning_rate: 0.00001      # Very conservative
+  weight_decay: 0.3           # Strong regularization
+
+scheduler:
+  name: 'ReduceLROnPlateau'
+  patience: 2
+  factor: 0.3
+  min_lr: 0.000001
+
+augmentation:
+  enabled: true
+  strategy: "basic"
+  # rotation_range: [-15, 15]
+  # brightness: 0.15
+  # contrast: 0.15
+  # intensity: 0.4
+
+wandb:
+  enabled: true
+  project: "document-classifier"
+  name: "phase2-variety-rotation-60deg-double_data_3_7_14_class"
+  tags: ["progressive", "phase2", "rotation-60deg"]
+  notes: "Phase 2: Variety training ±60° + discrete 90°, basic"
+  username: wchoi189
+
+  log_frequency: 10
+  log_images: true
+  log_model: false
+  log_gradients: false
+  log_confusion_matrix: true
+  watch_model: true
+  log_code: true
+
+paths:
+  output_dir: "outputs/progressive/lr_decay_mitigation/double_data_2_7_3_class"
+  model_dir: "outputs/progressive/phase2/lr_decay_mitigation/double_data_2_7_3_class"
+
+logging:
+  checkpoint_dir: "outputs/progressive/phase2/lr_decay_mitigation/double_data_2_7_3_class"

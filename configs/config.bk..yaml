@@ -1,0 +1,162 @@
+# ===================================================================
+#                   Main Hydra Configuration
+# ===================================================================
+# Description: This file has been reorganized to group settings by
+# function (e.g., Paths, Data, Training, Augmentation) for
+# improved readability and maintainability.
+# ===================================================================
+seed: 42
+device: 'cuda'
+
+defaults:
+  - _self_
+  - model: resnet50
+  - optimizer: adamw
+  - scheduler: cosine_warm_restart
+  - data: document
+  - hydra: default
+  - override hydra/hydra_logging: disabled  # ← Remove "override " prefix
+  - override hydra/job_logging: disabled    # ← Remove "override " prefix
+
+
+# --- Section 1: Global & Experiment Settings ---
+# High-level settings for the entire run.
+
+
+experiment:
+  name: None
+  description: "Default document classification experiment"
+  tags: ["document-classifier", "baseline"]
+
+# --- Section 2: Paths & Directories ---
+# Centralized location for all input/output paths.
+
+paths:
+  # Output directories
+  output_dir: "outputs"
+  # log_dir: "outputs/logs" # not working
+  model_dir: "outputs/models"
+  prediction_dir: "outputs/predictions"
+  batch_dir: "outputs/batch"
+  batch_summary_filename: "batch_summary.csv"
+
+logging:
+  log_dir: "outputs/logs"
+  checkpoint_dir: "outputs/models"  # 🔧 This was missing!
+  log_interval: 10
+  memory_logging: true
+  save_freq: 10
+  save_best_only: false
+
+hydra:
+  job:
+    name: ${experiment.name}
+  run:
+    dir: ${paths.output_dir}/hydra_logs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  mode: RUN  # Allows struct=False behavior
+  sweep:
+    dir: ${paths.output_dir}/hydra_sweeps/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}]
+
+ # This allows adding new keys
+_target_: ???
+    
+    # --- Section 3: Data Pipeline ---
+# Configuration for dataset loading and preprocessing.
+
+data:
+  # Input data
+  root_dir: "data/raw"
+  csv_file: "data/raw/metadata/train.csv"
+  meta_file: "data/raw/metadata/meta.csv"
+
+  image_size: 224
+  val_size: 0.2
+  num_workers: 0
+  # Normalization stats for image models
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+
+# --- Section 4: Augmentation Strategy ---
+# All data augmentation parameters are grouped here for clarity.
+
+augmentation:
+  # enabled: true # Master switch for all augmentations
+  strategy: "robust" # Options: "basic", "document", "robust"
+  intensity: 0.9 # Global intensity modifier (0.0 = minimal, 1.0 = maximum)
+
+  geometric:
+    intensity: 0.6
+    perspective_scale: [0.05, 0.15]
+    rotation_limit: 15
+
+  lighting:
+    intensity: 0.7
+    brightness_contrast_limit: 0.3
+    shadow_probability: 0.5
+    gamma_range: [70, 130]
+
+  quality:
+    intensity: 0.5
+    blur_limit: 7
+    noise_probability: 0.3
+    compression_probability: 0.3
+
+  advanced:
+    # Test Time Augmentation (TTA) for inference
+    tta_enabled: false
+    tta_transforms: ["horizontal_flip", "rotation"]
+
+    # Class-specific augmentation for imbalanced datasets
+    class_balanced: false
+    minority_class_boost: 1.5 # Extra augmentation factor for minority classes
+
+# --- Section 5: Training Process ---
+# Hyperparameters and settings for the model training loop.
+
+train:
+  epochs: 30
+  batch_size: 32
+  mixed_precision: true
+
+  early_stopping:
+    patience: 8
+    metric: 'val_f1'
+    mode: 'max'
+
+# --- Section 6: Experiment Tracking (WandB) ---
+# Configuration for Weights & Biases logging.
+
+wandb:
+  # enabled: true
+  project: "document-classifier"
+  entity: null # Specify your WandB entity (username or team)
+  username: wchoi189
+  notes: "augmentation on retry"
+  tags: ["document-classification", "resnet50"] # Can also inherit from experiment.tags
+
+  # Logging details
+  log_frequency: 10 # Log metrics every N batches
+  log_images: true
+  log_model: false
+  log_gradients: false
+  log_confusion_matrix: true
+
+  # Advanced features
+  watch_model: true # Watch model gradients and parameters
+  log_code: true # Log the state of the codebase
+
+# --- Section 7: Evaluation & Local Logging ---
+# Settings for validation, checkpointing, and local console logs.
+
+evaluation:
+  # Validation loop settings
+  compute_class_metrics: true
+  save_predictions: true
+  plot_curves: true
+
+  # Local logging & saving
+  console_log_interval: 10
+  memory_logging: true
+  checkpoint_save_freq: 10 # Save a checkpoint every N epochs
+  save_best_only: false

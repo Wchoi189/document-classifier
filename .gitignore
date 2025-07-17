@@ -31,6 +31,7 @@ env/
 ENV/
 .venv/
 .env
+doc-env/
 
 # IDE
 .vscode/
@@ -41,6 +42,7 @@ ENV/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+notebooks/test.ipynb
 
 # Models and data
 *.pkl
@@ -60,3 +62,46 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Specific model files
+best_model.pth
+
+# Weights & Biases
+wandb/
+*.wandb
+wandb-usage.md
+
+# Optional: Keep wandb config but ignore runs
+# If you want to keep wandb configs but ignore run data:
+wandb/run-*/
+wandb/sweep-*/
+!wandb/config.yaml
+!wandb/settings
+
+# documentation
+# docs/*
+
+# Data files
+data/*/*/*
+data/dataset/
+
+
+# Config files - ignore all except main config.yaml
+
+
+configs/*copy*.yaml
+
+
+# Backup and copy files
+data/augmentation copy.py
+data/augmentations2.py
+data/augmentations_improved.py
+
+# Output directories
+outputs/
+
+# Development requirements and submissions
+requirements-dev.txt
+submission.csv
+# Keep .py files under src/data
+!src/data/*.py

@@ -1,0 +1,51 @@
+# WandB Sweep Configuration for Document Classifier
+program: train.py
+method: bayes  # or 'grid', 'random'
+metric:
+  name: val_f1
+  goal: maximize
+
+parameters:
+  # Model parameters # values: ["resnet34", "resnet50", "efficientnet_b0", "vit_base_patch16_224"]
+  model_name:
+    values: ["efficientnet_b0", "vit_base_patch16_224"]
+  
+  # Training parameters
+  train_learning_rate:
+    distribution: log_uniform_values
+    min: 0.00001
+    max: 0.001
+  
+  train_batch_size:
+    values: [16, 32, 48]
+  
+  train_weight_decay:
+    distribution: log_uniform_values
+    
+    min: 0.00001
+    max: 0.001
+  
+  train_optimizer:
+    values: ["Adam", "AdamW", "SGD"]
+  
+  # Data parameters
+  data_image_size:
+    values: [224, 256, 288]
+  
+  data_use_document_augmentation:
+    values: [true, false]
+
+# Early termination
+early_terminate:
+  type: hyperband
+  min_iter: 5
+  max_iter: 20
+  s: 2
+  eta: 3
+
+# Run configuration
+command:
+  - python
+  - train.py
+  - --config
+  - config-efficient-net.yaml

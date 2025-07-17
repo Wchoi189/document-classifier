@@ -1,0 +1,46 @@
+# ========================================
+# configs/experiment/production_robust.yaml  
+# ========================================
+# @package _global_
+name: "production-robust-v1"
+description: "Production-ready model with optimized robust augmentation"
+tags: ["production", "robust", "optimized", "v1"]
+
+# Production settings
+train:
+  epochs: 50
+  batch_size: 32
+  
+  early_stopping:
+    patience: 12  # More patience for production
+    
+data:
+  augmentation:
+    strategy: "robust"
+    intensity: 0.85  # High but not extreme
+    enabled: true
+    
+    # Optimized settings based on test analysis
+    geometric:
+      intensity: 0.7
+      perspective_scale: [0.05, 0.2]
+      
+    lighting:
+      intensity: 0.8
+      brightness_contrast_limit: 0.35
+      shadow_probability: 0.6
+      
+    quality:
+      intensity: 0.6
+      blur_limit: 8
+      noise_probability: 0.4
+      compression_probability: 0.4
+
+# Enhanced WandB logging for production
+wandb:
+  enabled: true
+  log_model: false  # Save model artifacts
+  log_images: true
+  log_confusion_matrix: true
+  tags: ["production", "robust-v1", "domain-adapted"]
+  notes: "Production model v1 - optimized for real-world test conditions"

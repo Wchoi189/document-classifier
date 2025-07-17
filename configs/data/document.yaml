@@ -1,0 +1,9 @@
+root_dir: "data/raw"
+csv_file: "data/raw/metadata/train.csv"
+meta_file: "data/raw/metadata/meta.csv"
+image_size: 224
+val_size: 0.2
+num_workers: 0
+mean: [0.485, 0.456, 0.406]
+std: [0.229, 0.224, 0.225]
+use_document_augmentation: false

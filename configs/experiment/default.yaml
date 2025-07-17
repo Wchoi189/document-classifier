@@ -1,0 +1,3 @@
+name: "default_experiment"
+description: "Default document classification experiment"
+tags: ["image-based", "document-classifier", "default"]

@@ -1,0 +1,106 @@
+# @package _global_
+defaults:
+  - _self_
+
+name: "phase1-rotation-mild-fold0-phase1"
+description: "Phase 1: K-fold validation - Fold 0"
+tags: ["progressive", "phase1", "rotation", "kfold", "fold0","cross-phase-validation"]
+
+seed: 42
+device: 'cuda'
+
+# Phase 1 dataset
+data:
+  root_dir: "data/augmented_datasets/phase1_mild_fold_0"
+  csv_file: "data/augmented_datasets/phase1_mild_fold_0/metadata/train.csv"
+  meta_file: "data/augmented_datasets/phase1_mild_fold_0/metadata/meta.csv"
+  
+  # Cross-phase validation
+  val_root_dir: "data/augmented_datasets/phase2_variety_fold_0"
+  val_csv_file: "data/augmented_datasets/phase2_variety_fold_0/metadata/val.csv"
+
+
+  
+  image_size: 380
+  val_size: 0.0  # 🔧 Set to 0 - using separate val files
+  num_workers: 4
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+
+# Rest of config remains the same...
+# augmentation:
+  # enabled: true
+  # strategy: "basic"
+  # intensity: 0.0
+
+augmentation:
+  strategy: "basic"
+  # intensity: 0.65  # Overall intensity lowered
+  enabled: false
+  
+  # geometric:
+  #   intensity: 0.5  # Lower probability of applying geometric transforms
+  #   perspective_scale: [0.02, 0.1] # Reduced range for less extreme perspective shifts
+    
+  # lighting:
+  #   intensity: 0.6
+  #   brightness_contrast_limit: 0.2 # Less change in brightness and contrast
+  #   shadow_probability: 0.4 # Shadows will appear less often
+    
+  # quality:
+  #   intensity: 0.5
+  #   blur_limit: 5 # Reduced blur to keep images sharper
+  #   noise_probability: 0.3
+  #   compression_probability: 0.3
+
+
+model:
+  name: "resnet50"
+  pretrained: false
+
+train:
+  epochs: 30  # ~30% of total 50 epochs
+  batch_size: 32
+  mixed_precision: false
+
+   # Phase transition settings
+  load_checkpoint: "outputs/0701_baseline_mod/outputs/models/0701_baseline_mod/last_model.pth"
+
+  early_stopping:
+    patience: 5
+    metric: 'val_f1'
+    mode: 'max'
+
+optimizer:
+  name: 'AdamW'
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+
+scheduler:
+  name: 'CosineAnnealingWarmRestarts'
+  T_0: 10
+  T_mult: 2
+  eta_min: 0.00001
+
+wandb:
+  username: wchoi189
+  enabled: true
+  project: "document-classifier"
+  name: "phase1-kfold-rotation-20deg-fold0"
+  tags: ["progressive", "phase1", "kfold", "fold0"]
+  notes: "Phase 1: K-fold validation prevents overfitting"
+
+  log_frequency: 10
+  log_images: true
+  log_model: false
+  log_gradients: false
+  log_confusion_matrix: true
+  watch_model: true
+  log_code: true
+
+paths:
+  output_dir: "outputs/progressive"
+  model_dir: "outputs/progressive/phase1"
+
+logging:
+  checkpoint_dir: "outputs/progressive/phase1"

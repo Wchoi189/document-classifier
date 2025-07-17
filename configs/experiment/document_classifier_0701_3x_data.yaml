@@ -1,0 +1,90 @@
+# ========================================
+# configs/experiment/document_classifier_0701.yaml
+# ========================================
+# @package _global_
+
+# 🔧 SIMPLIFIED: No complex overrides - just explicit values that take priority
+defaults:
+  - _self_
+
+name: "document-classifier-resnet50-0701-phase0"
+description: "ResNet50 for 17-class document classification - EXACT 0701 recreation"
+tags: ["resnet50", "document-classification", "0701", "baseline", "no-augmentation","3x data"]
+
+# 🔧 EXPLICIT OVERRIDES - These will take priority
+seed: 42
+device: 'cuda'
+
+# 🔧 Data configuration - explicit override
+data:
+  root_dir: "data/raw"
+  csv_file: "data/raw/metadata/train.csv"
+  meta_file: "data/raw/metadata/meta.csv"
+  image_size: 224
+  val_size: 0.2
+  num_workers: 0
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+  use_document_augmentation: false
+
+# 🔧 Augmentation - FORCE DISABLE
+augmentation:
+  enabled: false
+  strategy: "none"
+  intensity: 0.0
+
+# 🔧 Model configuration - explicit override
+model:
+  name: "resnet50"
+  pretrained: true
+
+# 🔧 Training configuration - FORCE YOUR SETTINGS
+train:
+  epochs: 20                    # 🔧 FORCE 20 epochs
+  batch_size: 16               # 🔧 FORCE 16 batch size  
+  mixed_precision: false       # 🔧 Disable for exact 0701 recreation
+  
+  early_stopping:
+    patience: 5
+    metric: 'val_f1'
+    mode: 'max'
+
+# 🔧 Optimizer - FORCE YOUR SETTINGS
+optimizer:
+  name: 'AdamW'
+  learning_rate: 0.0001        # 🔧 FORCE 0.0001 (not 0.001)
+  weight_decay: 0.0001
+
+# 🔧 Scheduler - DISABLE for exact 0701 recreation  
+scheduler:
+  name: null                   # 🔧 No scheduler like original 0701
+
+# 🔧 WandB configuration
+wandb:
+  enabled: true
+  project: "document-classifier"
+  entity: null
+  name: "0701-baseline-exact-recreation"
+  tags: ["0701", "baseline", "no-augmentation", "resnet50"]
+  notes: "Exact recreation of 0701 baseline: 16 batch, 0.0001 lr, no augmentation, no scheduler"
+  username: wchoi189
+  
+  log_frequency: 10
+  log_images: true
+  log_model: false
+  log_gradients: false
+  log_confusion_matrix: true
+  watch_model: true
+  log_code: true
+
+# 🔧 Paths - use defaults but ensure compatibility
+paths:
+  output_dir: "outputs"
+  model_dir: "outputs/models"
+  prediction_dir: "outputs/predictions"
+
+logging:
+  log_dir: "outputs/logs"
+  checkpoint_dir: "outputs/models"
+  log_interval: 10
+  memory_logging: true

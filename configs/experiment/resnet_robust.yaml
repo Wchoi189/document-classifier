@@ -1,0 +1,47 @@
+# ========================================
+# configs/experiment/resnet_robust.yaml
+# ========================================
+# @package _global_
+name: "resnet50-robust-extreme"
+description: "ResNet50 with extreme robust augmentation for challenging test conditions"
+tags: ["resnet50", "robust", "extreme-aug", "production"]
+
+# Override defaults for this experiment
+defaults:
+  - override /model: resnet50
+  - override /optimizer: adamw
+  - override /scheduler: cosine_warm_restart
+
+# Experiment-specific settings
+train:
+  epochs: 40
+  batch_size: 24  # Slightly smaller for extreme augmentation
+  
+data:
+  augmentation:
+    strategy: "robust"
+    intensity: 0.95  # Maximum intensity
+    enabled: true
+    
+    geometric:
+      intensity: 0.8  # High geometric distortion
+      perspective_scale: [0.1, 0.25]  # More extreme perspective
+      
+    lighting:
+      intensity: 0.9  # Strong lighting variations
+      brightness_contrast_limit: 0.4
+      
+    quality:
+      intensity: 0.7  # Heavy quality degradation
+      blur_limit: 10
+      noise_probability: 0.5
+
+# WandB specific for this experiment
+wandb:
+  tags: ["resnet50", "extreme-robust", "production", "domain-gap"]
+  notes: "Extreme augmentation to bridge domain gap with real test conditions"
+
+
+
+
+

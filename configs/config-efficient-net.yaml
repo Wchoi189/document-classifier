@@ -1,0 +1,183 @@
+# WandB 섹션 - EfficientNet용으로 업데이트
+wandb:
+  enabled: true
+  project: "document-classifier"
+  entity: null
+  name: null
+  tags: ["efficientnet-b3", "document-classification", "imbalanced", "transfer-learning"]
+  notes: "17개 클래스 문서 분류 - EfficientNet-B3 with compound scaling"
+
+  log_frequency: 10
+  log_images: true
+  log_model: true
+  log_gradients: false
+  log_confusion_matrix: true
+  watch_model: true
+  log_code: true
+
+# 기본 설정
+seed: 42
+device: 'cuda'
+
+# 데이터 설정 - EfficientNet에 최적화
+data:
+  root_dir: "data/dataset"
+  csv_file: "data/dataset/train.csv"
+  meta_file: "data/dataset/meta.csv"
+  image_size: 300  # EfficientNet-B3 권장 크기 (224→300으로 증가)
+  val_size: 0.2
+  num_workers: 4   # EfficientNet은 더 많은 워커로 처리 가능
+  # EfficientNet용 정규화 (ImageNet 사전훈련 기준)
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+  use_document_augmentation: true  # 문서 특화 증강 활성화
+
+  # 문서 특화 증강 설정
+   # 증강 세부 설정
+ #  AUGMENTATIONS SHOULD BE A SEPARATE, TOP-LEVEL SECTION
+augmentations:
+  # Geometric Transformations
+  geom_probability: 0.5        # Probability for the entire geometric block
+  rotation_limit: 8
+  perspective_scale: 0.05
+  shift_scale_rotate: true
+  
+  # Lighting and Color
+  color_probability: 0.4       # Probability for the entire color block
+  brightness_contrast: true    # Use RandomBrightnessContrast
+  brightness_limit: 0.15
+  contrast_limit: 0.15
+  gamma_correction: true       # Use RandomGamma
+  
+  # Noise and Quality
+  noise_probability: 0.3       # Probability for the entire noise block
+  gaussian_noise: true         # Use GaussNoise
+  noise_variance: [5.0, 15.0]
+  jpeg_compression: true       # Use ImageCompression
+  compression_quality: [75, 95]
+  
+  # Augraphy Settings (if available)
+  use_augraphy: true
+  augraphy_probability: 0.6    # Overall probability for applying any Augraphy effect
+  paper_effects: 0.3
+  ink_effects: 0.4
+  scan_effects: 0.3
+  
+# 모델 설정 - EfficientNet
+model:
+  name: "efficientnet-b3"     # B0~B7 중 선택 (B3 권장: 성능/속도 균형)
+  pretrained: true
+  dropout_rate: 0.3           # EfficientNet 드롭아웃 비율
+  drop_connect_rate: 0.2      # Stochastic Depth
+  
+  # 대안 모델들 (주석 처리)
+  # name: "efficientnet-b0"   # 빠른 실험용
+  # name: "efficientnet-b4"   # 더 높은 성능 원할 때
+  # name: "efficientnet-b5"   # 최고 성능 (메모리 많이 필요)
+
+# 학습 설정 - EfficientNet 최적화
+train:
+  use_amp: true               # Mixed Precision (EfficientNet에 효과적)
+  epochs: 24                  # EfficientNet은 더 많은 에포크 필요
+  batch_size: 24              # B3 기준 (GPU 메모리에 따라 조정)
+  
+  # 옵티마이저 - EfficientNet 논문 기준
+  optimizer: 'RMSprop'        # 원논문에서 사용한 옵티마이저
+  learning_rate: 0.016        # 배치 크기에 비례 조정
+  weight_decay: 0.00001       # L2 정규화
+  momentum: 0.9               # RMSprop 모멘텀
+  
+  # 대안 옵티마이저 (더 안정적)
+  # optimizer: 'AdamW'
+  # learning_rate: 0.001
+  # weight_decay: 0.01
+  
+  loss: 'CrossEntropyLoss'
+  
+  # 라벨 스무딩 (EfficientNet 논문에서 사용)
+  label_smoothing: 0.1
+  
+   # 스케줄러 - EfficientNet 최적화
+  scheduler: 'CosineAnnealingWarmRestarts'
+  scheduler_params:
+    T_0: 10                   # 첫 번째 재시작까지 에포크
+    T_mult: 2                 # 재시작 주기 배수
+    eta_min: 0.00001         # 최소 학습률
+    
+  # 대안 스케줄러 (더 안정적)
+  # scheduler: 'ReduceLROnPlateau'
+  # scheduler_params:
+  #   mode: 'max'
+  #   factor: 0.5
+  #   patience: 5
+  #   min_lr: 0.00001
+
+  # 조기 종료 설정
+  early_stopping:
+    patience: 8               # EfficientNet은 더 긴 patience 필요
+    metric: 'val_f1'
+    mode: 'max'
+    min_delta: 0.001         # 최소 개선 임계값
+
+  # EfficientNet 특화 설정
+  gradient_clipping: 1.0      # 그래디언트 클리핑
+  ema_decay: 0.9999          # Exponential Moving Average (선택사항)
+
+# 로깅 및 저장 경로
+logging:
+  log_dir: "logs/efficientnet"
+  checkpoint_dir: "checkpoints/efficientnet"
+  log_interval: 10
+  memory_logging: true
+  
+  # 추가 로깅
+  log_lr: true               # 학습률 변화 로깅
+  log_gradients: false       # 그래디언트 norm 로깅
+  save_best_only: true       # 최고 성능 모델만 저장
+
+# 클래스 불균형 처리 (선택사항)
+class_balancing:
+  use_weighted_loss: false    # 가중치 손실 사용 여부
+  use_focal_loss: false       # Focal Loss 사용 여부
+  focal_alpha: 1.0           # Focal Loss alpha
+  focal_gamma: 2.0           # Focal Loss gamma
+  
+  # 샘플링 전략
+  use_weighted_sampling: false # 가중치 샘플링
+  oversample_minority: false   # 소수 클래스 오버샘플링
+
+# 테스트 시간 증강 (TTA)
+test_time_augmentation:
+  enabled: false             # TTA 사용 여부
+  num_augments: 5           # 증강 횟수
+  augment_types: ['rotation', 'brightness', 'perspective']
+
+
+
+# # 🟢 8GB GPU (GTX 1080, RTX 2070 등)
+# model:
+#   name: "efficientnet-b0"
+# data:
+#   image_size: 224
+# train:
+#   batch_size: 24
+#   use_amp: true
+
+# # 🟡 12GB GPU (RTX 3080, RTX 4070 Ti 등)  
+# model:
+#   name: "efficientnet-b3"     # 권장 ⭐
+# data:
+#   image_size: 300
+# train:
+#   batch_size: 16
+#   use_amp: true
+
+# # 🔴 16GB+ GPU (RTX 3090, RTX 4080 등)
+# model:
+#   name: "efficientnet-b4"
+# data:
+#   image_size: 380
+# train:
+#   batch_size: 12
+#   use_amp: true
+

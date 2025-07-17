@@ -1,0 +1,66 @@
+# @package _global_
+defaults:
+  - _self_
+
+name: "phase2-rotation-variety"
+description: "Phase 2: Rotation variety (±60° + 90°) - Progressive training"
+tags: ["progressive", "phase2", "rotation", "variety"]
+
+seed: 42
+device: 'cuda'
+
+# Phase 2 dataset
+data:
+  root_dir: "data/augmented_datasets/phase2_variety_60deg"
+  csv_file: "data/augmented_datasets/straitifed-k-fold-bk/combined_validation_set.csv"
+  meta_file: "data/augmented_datasets/phase2_variety_60deg/metadata/meta.csv"
+  image_size: 224
+  val_size: 0.2
+  num_workers: 0
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+
+augmentation:
+  enabled: false
+  strategy: "none"
+  intensity: 0.0
+
+model:
+  name: "resnet50"
+  pretrained: false  # Will load from Phase 1
+
+train:
+  epochs: 20  # ~40% of total 50 epochs
+  batch_size: 16
+  mixed_precision: false
+  
+  # Phase transition settings
+  load_checkpoint: "outputs/progressive/phase1/best_model.pth"
+  
+  early_stopping:
+    patience: 10
+    metric: 'val_f1'
+    mode: 'max'
+
+optimizer:
+  name: 'AdamW'
+  learning_rate: 0.00005  # Reduced for fine-tuning
+  weight_decay: 0.0001
+
+scheduler:
+  name: null
+
+wandb:
+  enabled: true
+  project: "document-classifier-progressive"
+  name: "phase2-variety-rotation-60deg"
+  tags: ["progressive", "phase2", "rotation-60deg"]
+  notes: "Phase 2: Variety training ±60° + discrete 90°"
+  username: wchoi189
+
+paths:
+  output_dir: "outputs/progressive"
+  model_dir: "outputs/progressive/phase2"
+
+logging:
+  checkpoint_dir: "outputs/progressive/phase2"

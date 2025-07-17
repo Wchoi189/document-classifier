@@ -1,0 +1,58 @@
+seed: 42
+device: 'cuda'
+
+experiment:
+  name: "simple_test"
+  description: "Simple test"
+  tags: ["test"]
+
+data:
+  root_dir: "data/raw"
+  csv_file: "data/raw/metadata/train.csv"
+  meta_file: "data/raw/metadata/meta.csv"
+  image_size: 224
+  val_size: 0.2
+  num_workers: 0
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+  use_document_augmentation: false
+
+train:
+  epochs: 2
+  batch_size: 8
+  early_stopping:
+    patience: 3
+    metric: 'val_f1'
+    mode: 'max'
+
+model:
+  name: "resnet50"
+  pretrained: true
+
+optimizer:
+  name: 'AdamW'
+  learning_rate: 0.001
+  weight_decay: 0.01
+
+scheduler:
+  name: 'CosineAnnealingWarmRestarts'
+  T_0: 5
+  T_mult: 2
+  eta_min: 0.00001
+
+augmentation:
+  enabled: false
+  strategy: "none"
+  intensity: 0.0
+
+wandb:
+  enabled: false
+
+paths:
+  output_dir: "outputs"
+  model_dir: "outputs/models"
+  prediction_dir: "outputs/predictions"
+
+logging:
+  log_dir: "outputs/logs"
+  checkpoint_dir: "outputs/models"

@@ -1,0 +1,83 @@
+# WandB 섹션 추가
+wandb:
+  enabled: true
+  project: "document-classifier"
+  entity: null  # WandB 사용자 이름 (선택 사항)
+  name: null    # 실행 이름 자동 생성
+  tags: ["resnet50", "document-classification", "0701"]
+  notes: "17개 클래스 문서 분류 - 클래스 불균형 2.2:1"
+  username: wchoi189
+
+  # 로깅 설정
+  log_frequency: 10        # N 배치마다 로그 기록
+  log_images: true         # 예측 샘플 로그 기록
+  log_model: false          # 모델 아티팩트 저장
+  log_gradients: false     # 그래디언트 norm 모니터링
+  log_confusion_matrix: true
+
+  # 고급 기능
+  watch_model: true        # 모델 구조 모니터링
+  log_code: true           # 코드 스냅샷 저장
+
+# 기본 설정
+seed: 42
+device: 'cuda' # 'cuda' 또는 'cpu'
+
+# 데이터 설정 CSV 기반
+data:
+  root_dir: "data/dataset"
+  csv_file: "data/dataset/train.csv"
+  meta_file: "data/dataset/meta.csv"
+  image_size: 224
+  val_size: 0.2
+  num_workers: 0  # CUDA 호환성을 위해 0으로 유지
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+  use_document_augmentation: false
+
+  # 추가: 데이터 증강 설정
+  # augmentations:
+  #   use_blur: true
+  #   blur_params:
+  #     blur_limit: [3, 7]  # 최소값을 3으로 설정
+  #     sigma_limit: [0.1, 2.0]  # 최소값을 0보다 크게 설정
+
+# 모델 설정
+model:
+  name: "resnet50"
+  # name: "resnet34" # 기존 resnet50, 약 30% 메모리 절약
+  pretrained: true
+
+# 학습 설정
+train:
+  # use_amp: true # 자동 혼합 정밀도 사용 여부
+  epochs: 20
+  batch_size: 16 # 기존 32, 절반으로 줄임
+  optimizer: 'AdamW' # 'Adam', 'AdamW', 'SGD' 등 torch.optim에 있는 옵티마이저
+  loss: 'CrossEntropyLoss' # 'CrossEntropyLoss', 'FocalLoss' 등 (FocalLoss는 별도 구현 필요)
+
+  # 옵티마이저 하이퍼파라미터
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+
+  # 스케줄러 설정 (비어있으면 사용 안 함)
+  # scheduler: 'CosineAnnealingLR' # 'CosineAnnealingLR', 'ReduceLROnPlateau' 등
+  # scheduler_params:
+  #   T_max: 20 # for CosineAnnealingLR
+  #   eta_min: 0.000001 # for CosineAnnealingLR
+  #   # mode: 'min' # for ReduceLROnPlateau
+  #   # factor: 0.1 # for ReduceLROnPlateau
+  #   # patience: 3 # for ReduceLROnPlateau
+
+  # 조기 종료 설정 (train 섹션 안으로 이동)
+  early_stopping:
+    patience: 5
+    metric: 'val_f1' # 'val_loss', 'val_acc', 'val_f1'
+    mode: 'max' # val_loss의 경우 'min', 나머지는 'max'
+
+# 로깅 및 저장 경로
+logging:
+  log_dir: "logs"
+  checkpoint_dir: "checkpoints"
+  log_interval: 10 # N 배치마다 학습 손실 로그 출력
+  memory_logging: true # 메모리 사용량 로그 출력 여부

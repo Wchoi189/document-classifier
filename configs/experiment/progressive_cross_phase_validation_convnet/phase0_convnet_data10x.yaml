@@ -1,0 +1,101 @@
+# ========================================
+# configs/experiment/document_classifier_convnext.yaml
+# ========================================
+# @package _global_
+
+defaults:
+  - _self_
+
+name: "document-classifier-convnextv2-base-384"
+description: "ConvNeXt-Base for 17-class document classification"
+tags: ["convnextv2", "document-classification", "baseline","data10x","384"]
+
+seed: 42
+device: 'cuda'
+
+# 🔧 Data configuration - SAME as your ResNet config
+data:
+  root_dir: "data/augmented_datasets/v1_volume_10x"
+  csv_file: "data/augmented_datasets/v1_volume_10x/metadata/train.csv"
+  meta_file: "data/augmented_datasets/v1_volume_10x/metadata/meta.csv"
+
+  # Cross-phase validation
+  val_root_dir: "data/augmented_datasets/phase1_mild_fold_0"
+  val_csv_file: "data/augmented_datasets/phase1_mild_fold_0/metadata/combined_validation_set.csv"
+  
+  image_size: 384
+  val_size: 0.0  # 🔧 Set to 0 - using separate val files                   # ConvNeXt works well with 224
+  num_workers: 4                     # Can increase for ConvNeXt
+  mean: [0.485, 0.456, 0.406]       # ImageNet stats work fine
+  std: [0.229, 0.224, 0.225]
+  use_document_augmentation: false
+
+# 🔧 Augmentation - Start without, add later
+augmentation:
+  enabled: false
+  strategy: "none"
+  intensity: 0.0
+
+# 🔧 Model configuration - KEY CHANGES HERE
+model:
+  name: "convnextv2_base.fcmae_ft_in22k_in1k_384"  # or convnext_tiny, convnext_small
+  pretrained: false
+  arcFace: true                   # CRITICAL - use ImageNet pretrained
+  drop_path_rate: 0.1
+
+  # layer_scale_init_value: 1e-6      # ConvNeXtv1 stability parameter
+
+# 🔧 Training - Adjust for ConvNeXt
+train:
+  epochs: 30                         # ConvNeXt may need slightly more epochs
+  batch_size: 16                     # Reduce if memory issues (ConvNeXt uses more memory)
+  mixed_precision: true              # Enable for ConvNeXt efficiency
+  load_checkpoint: "outputs/convnextv2_baseline_384/outputs/models/convnextv2_baseline_384/best_model.pth"
+  early_stopping:
+    patience: 5
+    metric: 'val_f1'
+    mode: 'max'
+
+# 🔧 Optimizer - ConvNeXt-optimized settings
+optimizer:
+  name: 'AdamW'
+  learning_rate: 0.00003             # Start lower for ConvNeXt
+  weight_decay: 0.05                 # Higher weight decay for ConvNeXt
+  betas: [0.9, 0.999]
+  eps: 1e-8
+
+# 🔧 Scheduler - ConvNeXt benefits from scheduling
+scheduler:
+  name: 'CosineAnnealingLR'          # Simple cosine works well
+  T_max: 30                          # Match epochs
+  eta_min: 0.000005
+
+# 🔧 WandB - Updated for ConvNeXt
+wandb:
+  enabled: true
+  project: "document-classifier"
+  name: "convnextv2_phase0_data10x_384-380"
+  tags: ["convnextv2", "baseline", "document-classification"]
+  notes: "ConvNeXtv2 for document classification - dataset10x 380"
+  username: wchoi189
+  
+  log_frequency: 10
+  log_images: true
+  log_model: false
+  log_gradients: false
+  log_confusion_matrix: true
+  watch_model: true
+  log_code: true
+
+paths:
+  output_dir: "outputs/convnextv2_phase0_data10x_384"
+  model_dir: "outputs/models/convnextv2_phase0_data10x_384"
+  prediction_dir: "outputs/convnextv2_phase0_data10x_384/predictions"
+
+logging:
+  log_dir: "outputs/logs/convnextv2_phase0_data10x_384"
+  checkpoint_dir: "outputs/models/convnextv2_phase0_data10x_384/"
+  log_interval: 10
+  memory_logging: true
+
+  # outputs/convnextv2_phase0_data10x_384/outputs/models/convnextv2_phase0_data10x_384

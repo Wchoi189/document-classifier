@@ -1,0 +1,36 @@
+# ========================================
+# configs/experiment/ablation_study.yaml
+# ========================================
+# @package _global_
+name: "ablation-augmentation-study"
+description: "Ablation study for augmentation components"
+tags: ["ablation", "research", "augmentation"]
+
+# Standard training setup
+train:
+  epochs: 25
+  batch_size: 32
+
+# Ablation-specific augmentation  
+data:
+  augmentation:
+    strategy: "robust"
+    intensity: 0.7
+    enabled: true
+    
+    # Disable specific components for ablation
+    geometric:
+      enabled: true  # Test with/without geometric
+      intensity: 0.6
+      
+    lighting:
+      enabled: true  # Test with/without lighting
+      intensity: 0.7
+      
+    quality:
+      enabled: false  # DISABLED for this ablation run
+      intensity: 0.0
+
+wandb:
+  tags: ["ablation", "no-quality-aug", "research"]
+  notes: "Ablation study - Quality augmentation DISABLED"
