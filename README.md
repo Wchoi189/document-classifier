@@ -31,15 +31,15 @@
   </tr>
 </table>
 
-## 0. Overview
+## 0. 개요
 
-### Environment
-- **OS**: Ubuntu 20.04 LTS
+### 환경
+- **운영체제**: Ubuntu 20.04 LTS
 - **Python**: 3.8+
-- **GPU**: CUDA 11.8+ compatible
-- **Framework**: PyTorch 2.0+, Hydra 1.2+, WandB
+- **GPU**: CUDA 11.8+ 호환
+- **프레임워크**: PyTorch 2.0+, Hydra 1.2+, WandB
 
-### Requirements
+### 요구사항
 - PyTorch >= 2.0.0
 - torchvision >= 0.15.0
 - Hydra-core >= 1.2.0
@@ -52,20 +52,20 @@
 - fire >= 0.5.0
 - icecream >= 2.1.3
 
-## 1. Competition Info
+## 1. 대회 정보
 
-### Overview
-17개 문서 유형을 분류하는 이미지 기반 딥러닝 경진대회입니다. 다양한 문서 스타일, 회전, 조명 조건에서의 강건한 분류 성능이 요구됩니다. 현재 79% 테스트 정확도를 달성했으며, 도메인 적응을 통한 성능 개선을 목표로 합니다.
+### 개요
+17개 문서 유형을 분류하는 이미지 기반 딥러닝 경진대회입니다. 다양한 문서 스타일, 회전, 조명 조건에서의 강건한 분류 성능이 요구됩니다. 초기 79% 테스트 정확도에서 시작하여 도메인 적응 및 점진적 증강 전략을 통해 최종 95.98% 정확도를 달성했습니다.
 
-### Timeline
-- **시작일**: 2024년 12월 1일
-- **최종 제출 마감**: 2025년 2월 28일
-- **중간 평가**: 2025년 1월 15일
-- **최종 발표**: 2025년 3월 5일
+### 일정
+- **시작일**: 2025년 7월 1일
+- **최종 제출 마감**: 2025년 7월 10일
+- **중간 평가**: 2025년 7월9일
+- **최종 발표**: 2025년 7월 11일
 
-## 2. Components
+## 2. 구성 요소
 
-### Directory
+### 디렉토리 구조
 
 ```
 document-classifier/
@@ -134,16 +134,16 @@ document-classifier/
 └── README.md                     # 프로젝트 문서
 ```
 
-## 3. Data Description
+## 3. 데이터 설명
 
-### Dataset Overview
+### 데이터셋 개요
 - **총 샘플 수**: 4,710장 (훈련: 1,570장, 테스트: 3,140장)
 - **클래스 수**: 17개 문서 유형
 - **이미지 규격**: 다양한 해상도 (중앙값: 443×591)
 - **클래스 불균형**: 2.2:1 비율 (최대 100장, 최소 46장)
 - **도메인 갭**: 훈련-테스트 간 회전각도 554% 차이
 
-### EDA
+### 탐색적 데이터 분석
 
 **핵심 발견사항**:
 - **회전 불일치**: 훈련 평균 1.92° vs 테스트 평균 12.57° (554% 차이)
@@ -155,7 +155,7 @@ document-classifier/
 - **대형 클래스** (100장): 클래스 0,2,3,4,5,6,7,8,9,10,11,12,15,16
 - **소형 클래스**: 클래스 1 (46장), 클래스 14 (50장), 클래스 13 (74장)
 
-### Data Processing
+### 데이터 처리
 
 **전처리 파이프라인**:
 1. **이미지 정규화**: ImageNet 통계 사용 (mean=[0.485, 0.456, 0.406])
@@ -172,9 +172,9 @@ document-classifier/
 - 소스 레벨 분할로 데이터 누수 방지
 - 클래스 균형 유지
 
-## 4. Modeling
+## 4. 모델링
 
-### Model Description
+### 모델 설명
 
 **주요 모델**: ResNet50 (2,350만 파라미터)
 - ImageNet 사전 훈련된 가중치 사용
@@ -191,7 +191,7 @@ document-classifier/
 - 다양한 회전과 조명 조건에서의 강건성
 - 전이 학습을 통한 빠른 수렴
 
-### Modeling Process
+### 모델링 과정
 
 **훈련 설정**:
 - **옵티마이저**: AdamW (lr=0.0001, weight_decay=0.0001)
@@ -210,32 +210,34 @@ document-classifier/
 - 클래스별 성능 매트릭스
 - 혼동 매트릭스 시각화
 
-## 5. Result
+## 5. 결과
 
-### Leader Board
+### 리더보드 성과
 
-**현재 성능**:
-- **테스트 정확도**: 79%
-- **훈련 정확도**: 89%
-- **도메인 갭**: 10%
-- **F1-score**: 0.78 (macro-average)
+**최종 대회 결과**:
+- **팀 순위**: 3위 (CV_2조)
+- **팀 점수**: 0.9598 (95.98%)
+- **개인 최고 점수**: 0.9348 (Private) / 0.9286 (Final)
 
-**순위**: 상위 25% (구체적 순위는 대회 종료 후 공개)
+<img src="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/blob/wb2x/wb2x/docs/images/leaderboard/leaderboard(public)_snippet.png" width="auto" alt="리더보드 상위 3팀 결과">
 
-**성능 개선 목표**:
-- 목표 테스트 정확도: 85-90%
-- 도메인 갭 축소: 10% → 5% 이하
-- 클래스별 균형 개선
+**성능 개선 과정**:
+- **초기 베이스라인**: 79% 테스트 정확도
+- **도메인 갭 분석**: 554% 회전 불일치 발견
+- **점진적 증강 적용**: 3단계 로테이션 적응
+- **최종 성과**: 95.98% 팀 점수 달성
 
-### Presentation
+**기술적 기여**:
+- **개인 기여**: 도메인 갭 분석 도구 개발, 점진적 증강 전략 설계
+- **팀 기여**: 모델 앙상블, 하이퍼파라미터 최적화, 데이터 증강 파이프라인
+
+### 발표 자료
 
 - [최종 발표 자료](docs/presentation/final_presentation.pdf)
-- [중간 발표 자료](docs/presentation/midterm_presentation.pdf)
-- [기술 보고서](docs/technical_report.pdf)
 
-## 6. Advanced Features & Analysis Tools
+## 6. 고급 기능 및 분석 도구
 
-### 🔍 Corruption Analysis
+### 🔍 손상 분석
 ```bash
 # 포괄적인 손상 분석 실행
 python -m src.analysis.corruption_analyzer run_comprehensive_analysis
@@ -244,7 +246,7 @@ python -m src.analysis.corruption_analyzer run_comprehensive_analysis
 - 회전, 밝기, 블러, 노이즈 분석
 - 시각적 비교 리포트 생성
 
-### 📊 Class Performance Analysis
+### 📊 클래스 성능 분석
 ```bash
 # 클래스별 성능 분석
 python -m src.analysis.class_performance_analyzer analyze_class_performance
@@ -253,7 +255,7 @@ python -m src.analysis.class_performance_analyzer analyze_class_performance
 - 성능-손상 상관관계 분석
 - 개선 우선순위 제안
 
-### 🔍 Wrong Predictions Explorer
+### 🔍 오분류 탐색기
 ```bash
 # 오분류 탐색 (예측 파일 필요)
 python -m src.analysis.wrong_predictions_explorer explore_wrong_predictions \
@@ -263,7 +265,7 @@ python -m src.analysis.wrong_predictions_explorer explore_wrong_predictions \
 - 패턴 식별 및 시각화
 - 개선점 도출
 
-### 🎯 Visual Verification
+### 🎯 시각적 검증
 ```bash
 # 시각적 검증 도구
 python -m src.utils.visual_verification run_visual_verification \
@@ -273,7 +275,7 @@ python -m src.utils.visual_verification run_visual_verification \
 - 증강 강도 검증
 - 도메인 적응 효과 확인
 
-## 7. Quick Start Guide
+## 7. 빠른 시작 가이드
 
 ### 환경 설정
 ```bash
@@ -313,7 +315,7 @@ python -m src.analysis.corruption_analyzer run_comprehensive_analysis
 python -m src.analysis.class_performance_analyzer analyze_class_performance
 ```
 
-## 8. Configuration Management
+## 8. 설정 관리
 
 ### Hydra 기반 설정
 - **기본 설정**: `configs/config.yaml`
@@ -328,7 +330,7 @@ python scripts/train.py experiment=phase1_kfold_training
 python scripts/train.py model=efficientnet train.epochs=50
 ```
 
-## 9. Performance Optimization
+## 9. 성능 최적화
 
 ### 현재 최적화 기법
 - **혼합 정밀도 훈련**: 메모리 사용량 50% 감소
@@ -336,15 +338,15 @@ python scripts/train.py model=efficientnet train.epochs=50
 - **교차 단계 검증**: 과적합 방지
 - **ArcFace 손실**: 특징 학습 강화
 
-### 계획된 개선사항
-- **GradCAM 시각화**: 모델 해석성 향상
-- **테스트 시간 증강**: 추론 정확도 향상
-- **앙상블 모델**: 다중 모델 결합
-- **하이퍼파라미터 자동 튜닝**: Optuna 연동
+### 구현된 개선사항
+- **도메인 갭 분석**: 554% 회전 불일치 해결
+- **점진적 증강 전략**: 3단계 로테이션 적응
+- **K-fold 교차검증**: 데이터 누수 방지
+- **앙상블 모델**: 다중 모델 결합으로 최종 성과 향상
 
-## etc
+## 기타
 
-### Reference
+### 참고 문헌
 - [ResNet 논문](https://arxiv.org/abs/1512.03385) - Deep Residual Learning
 - [ConvNeXt 논문](https://arxiv.org/abs/2201.03545) - A ConvNet for the 2020s
 - [ArcFace 논문](https://arxiv.org/abs/1801.07698) - Additive Angular Margin Loss
@@ -352,7 +354,7 @@ python scripts/train.py model=efficientnet train.epochs=50
 - [Hydra](https://hydra.cc/) - 설정 관리 프레임워크
 - [WandB](https://wandb.ai/) - 실험 추적 플랫폼
 
-### Acknowledgments
+### 감사의 말
 - **Upstage AI Lab** - 인프라 및 기술 지원
 - **패스트캠퍼스** - 교육 프로그램 제공
-- **팀원들** - 협업과 지식 공유
+- **팀원들** - 협업과 지식 공유를 통한 3위 달성
