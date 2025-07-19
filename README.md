@@ -4,11 +4,16 @@
 
 <table>
   <tr>
-    <td align="center"><img src="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/blob/james/docs/team/images/AI13_이경도.jpg?raw=true" width="180" height="180"/></td>
+<!--     <td align="center"><img src="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/blob/james/docs/team/images/AI13_이경도.jpg?raw=true" width="180" height="180"/></td>
     <td align="center"><img src="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/blob/lsw/docs/team/images/AI13_이승민.jpg?raw=true" width="180" height="180"/></td>
     <td align="center"><img src="https://github.com/Wchoi189/document-classifier/blob/dev-hydra/docs/images/team/AI13_%EC%B5%9C%EC%9A%A9%EB%B9%84.png?raw=true" width="180" height="180"/></td>
     <td align="center"><img src="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/blob/main/docs/team/images/AI13_이상원.jpg?raw=true" width="180" height="180"/></td>
-    <td align="center"><img src="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/blob/main/docs/team/images/AI13_김재덕.jpg?raw=true" width="180" height="180"/></td>
+    <td align="center"><img src="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/blob/main/docs/team/images/AI13_김재덕.jpg?raw=true" width="180" height="180"/></td> -->
+    <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
+    <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
+    <td align="center"><img src="https://github.com/Wchoi189/document-classifier/blob/dev-hydra/docs/images/team/AI13_%EC%B5%9C%EC%9A%A9%EB%B9%84.png?raw=true" width="180" height="180"/></td>
+    <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
+    <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>    
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_2/tree/james">이경도</a></td>
@@ -25,6 +30,7 @@
     <td align="center">평가 및 시각화</td>
   </tr>
 </table>
+
 ## 0. Overview
 
 ### Environment
