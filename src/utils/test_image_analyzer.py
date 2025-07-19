@@ -109,12 +109,23 @@ class TestImageAnalyzer:
         edges = cv2.Canny(gray, 50, 150, apertureSize=3)
         lines = cv2.HoughLines(edges, 1, np.pi/180, threshold=100)
         
+        # line_angles = []
+        # if lines is not None:
+        #     for rho, theta in lines[:20]:  # 상위 20개 직선만 분석
+        #         angle = theta * 180 / np.pi
+        #         line_angles.append(angle)
+        
         line_angles = []
         if lines is not None:
-            for rho, theta in lines[:20]:  # 상위 20개 직선만 분석
+            for line in lines[:20]:
+                # Handle both (rho, theta) and [[rho, theta]] formats
+                if isinstance(line[0], (list, np.ndarray)):
+                    rho, theta = line[0][0], line[0][1]
+                else:
+                    rho, theta = line[0], line[1]
                 angle = theta * 180 / np.pi
-                line_angles.append(angle)
-        
+                line_angles.append(angle)        
+
         # 2. 각도 분산 (높을수록 더 왜곡됨)
         angle_variance = np.var(line_angles) if line_angles else 0
         
@@ -429,7 +440,7 @@ class TestImageAnalyzer:
         print("🖼️ 선택된 샘플 갤러리 생성 중...")
         gallery_fig = self.create_sample_gallery(selected_df)
         gallery_path = self.output_dir / 'representative_samples_gallery.png'
-        gallery_fig.savefig(gallery_path, dpi=300, bbox_inches='tight')
+        gallery_fig.savefig(str(gallery_path), dpi=300, bbox_inches='tight')
         plt.close(gallery_fig)
         
         # 5. 보고서 생성
